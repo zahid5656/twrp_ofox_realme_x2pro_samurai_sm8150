@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Samurai recovery build <samurai@localhost>
+Date: Thu, 16 Jul 2026 00:00:06 +0600
+Subject: [PATCH] recovery: order task profiles before ramdisk copy
+
+The TWRP ramdisk post-install command copies task_profiles.json from the
+system output, but the phony module does not declare that prebuilt as a direct
+requirement.  Ninja can therefore run the copy before the file is installed.
+Add the missing dependency to make the ramdisk assembly deterministic.
+---
+ prebuilt/Android.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/prebuilt/Android.mk b/prebuilt/Android.mk
+--- a/prebuilt/Android.mk
++++ b/prebuilt/Android.mk
+@@ -471,6 +471,7 @@ LOCAL_REQUIRED_MODULES += init_second_stage.recovery \
+     plat_hwservice_contexts \
+     plat_hardware_contexts \
+     vndservice_contexts \
++    task_profiles.json \
+     plat_keystore2_key_contexts \
+     vendor_hwservice_contexts
+ 
+-- 
+2.43.0
