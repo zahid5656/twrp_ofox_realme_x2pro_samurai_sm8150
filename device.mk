@@ -15,13 +15,13 @@ TARGET_SCREEN_WIDTH := 1080
 PRODUCT_SOONG_NAMESPACES += \
     vendor/qcom/opensource/commonsys-intf/display
     
-# SHIPPING API
+# SHIPPING API (device launched on Pie; FBE policy forced to v2 in BoardConfig)
 PRODUCT_SHIPPING_API_LEVEL := 28
 
 # Assert
-TARGET_OTA_ASSERT_DEVICE := samurai,RMX1931
+TARGET_OTA_ASSERT_DEVICE := samurai,RMX1931,RMX1931L1
 
-# Crypto
+# Crypto (QCOM FBE via android_device_qcom_twrp-common)
 PRODUCT_PACKAGES += \
     qcom_decrypt \
     qcom_decrypt_fbe
@@ -34,9 +34,9 @@ PRODUCT_PACKAGES += \
 TARGET_RECOVERY_DEVICE_MODULES += \
     libion \
     libxml2 \
-	vendor.display.config@1.0 \
-	vendor.display.config@2.0 \
-	libdisplayconfig.qti
+    vendor.display.config@1.0 \
+    vendor.display.config@2.0 \
+    libdisplayconfig.qti
 
 TW_RECOVERY_ADDITIONAL_RELINK_LIBRARY_FILES += \
     $(TARGET_OUT_SHARED_LIBRARIES)/libion.so \

@@ -1,6 +1,8 @@
 # Android fstab file.
 # The filesystem that contains the filesystem checker binary (typically /system) cannot
 # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+#
+# /data encryption must match recovery.fstab / ROM fstab (A16 FBE v2 + wrappedkey)
 
 # mount point  fstype device                             device2              flags
 /boot          emmc   /dev/block/bootdevice/by-name/boot
@@ -15,9 +17,9 @@
 /odm_image     emmc   /dev/block/bootdevice/by-name/odm
 /vendor_image  emmc   /dev/block/bootdevice/by-name/vendor
 
-/metadata      ext4   /dev/block/bootdevice/by-name/metadata                    flags=display="Metadata";backup=0;wipeingui
-/data          ext4   /dev/block/bootdevice/by-name/userdata                     flags=fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized;keydirectory=/metadata/vold/metadata_encryption;quota;reservedsize=128M
-/data          f2fs   /dev/block/bootdevice/by-name/userdata                     flags=fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized;keydirectory=/metadata/vold/metadata_encryption;quota;formattable;reservedsize=128M
+/metadata      ext4   /dev/block/bootdevice/by-name/metadata                     flags=display="Metadata";backup=1
+/data          ext4   /dev/block/bootdevice/by-name/userdata                     flags=fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey;keydirectory=/metadata/vold/metadata_encryption
+/data          f2fs   /dev/block/bootdevice/by-name/userdata                     flags=fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey;keydirectory=/metadata/vold/metadata_encryption
 /firmware      vfat   /dev/block/bootdevice/by-name/modem                        flags=display="Firmware";mounttodecrypt
 /misc          emmc   /dev/block/bootdevice/by-name/misc
 /modem         emmc   /dev/block/bootdevice/by-name/modem                        flags=backup=1;display="Modem"

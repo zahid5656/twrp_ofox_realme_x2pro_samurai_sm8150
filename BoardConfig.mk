@@ -1,29 +1,32 @@
 #
-# Copyright (C) 2022 Team Win Recovery Project
+# Copyright (C) 2024 Team Win Recovery Project
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# For building with minimal manifest
+# For building with minimal manifest in QPR2
 ALLOW_MISSING_DEPENDENCIES := true
 
 # Device Path
 DEVICE_PATH := device/realme/samurai
 
-# Architecture
+# A-only dedicated recovery
+AB_OTA_UPDATER := false
+TARGET_NO_RECOVERY := false
+BOARD_USES_RECOVERY_AS_BOOT := false
+
+# Architecture — SM8150 / Kryo 485 / TWRP 14.1
 TARGET_ARCH := arm64
-TARGET_ARCH_VARIANT := armv8-2a
+TARGET_ARCH_VARIANT := armv8-2a-dotprod
 TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_ABI2 :=
-TARGET_CPU_VARIANT := generic
-TARGET_CPU_VARIANT_RUNTIME := kryo485
+TARGET_CPU_VARIANT := cortex-a76
 
 TARGET_2ND_ARCH := arm
 TARGET_2ND_ARCH_VARIANT := armv8-2a
 TARGET_2ND_CPU_ABI := armeabi-v7a
 TARGET_2ND_CPU_ABI2 := armeabi
-TARGET_2ND_CPU_VARIANT := generic
-TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a76
+TARGET_2ND_CPU_VARIANT := cortex-a55
 
 # Enable CPUSets
 ENABLE_CPUSETS := true
@@ -43,7 +46,9 @@ BOARD_USES_QCOM_HARDWARE := true
 QCOM_BOARD_PLATFORMS += msmnile
 TARGET_BOARD_PLATFORM := msmnile
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno640
+TARGET_USES_64_BIT_BINDER := true
 TARGET_SUPPORTS_64_BIT_APPS := true
+BUILD_BROKEN_DUP_RULES := true
 TARGET_USES_QCOM_BSP := true
 
 # Kernel
@@ -87,6 +92,8 @@ BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4
+BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
+# Samurai userdata defaults to F2FS; recovery still supports both F2FS and ext4.
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 # Recovery
@@ -101,21 +108,22 @@ TARGET_COPY_OUT_ODM := odm
 TARGET_COPY_OUT_VENDOR := vendor
 
 # System as root
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := true
 BOARD_ROOT_EXTRA_FOLDERS := bluetooth dsp firmware persist
 
 # Extras
 BOARD_SUPPRESS_SECURE_ERASE := true
 TARGET_SYSTEM_PROP += $(DEVICE_PATH)/system.prop
 
-# Crypto
+# Crypto (Android 14 FBE compatibility)
 BOARD_USES_METADATA_PARTITION := true
 BOARD_USES_QCOM_FBE_DECRYPTION := true
 TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
-TW_USE_FSCRYPT_POLICY := 1
+TW_USE_FSCRYPT_POLICY := 2
 
-# Hack: Prevent anti rollback
+# Hack: Prevent anti rollback (match/exceed ROM security patch for decrypt)
 PLATFORM_VERSION := 99.87.36
 PLATFORM_SECURITY_PATCH := 2127-12-31
 VENDOR_SECURITY_PATCH := $(PLATFORM_SECURITY_PATCH)
@@ -132,10 +140,11 @@ TW_EXTRA_LANGUAGES := true
 TW_INCLUDE_NTFS_3G := true
 TW_USE_TOOLBOX := true
 TW_INCLUDE_RESETPROP := true
+TW_INCLUDE_LIBRESETPROP := true
 TW_INPUT_BLACKLIST := "hbtp_vm"
 TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS := 1023
-TW_DEFAULT_BRIGHTNESS := 400
+TW_DEFAULT_BRIGHTNESS := 200
 TW_Y_OFFSET := 80
 TW_H_OFFSET := -80
 TW_NO_SCREEN_BLANK := true
@@ -148,12 +157,15 @@ TW_FORCE_KEYMASTER_VER := true
 TW_HAS_EDL_MODE := true
 TW_OZIP_DECRYPT_KEY := 1c4c1ea3a12531ae491b21bb31613c11
 TW_SKIP_COMPATIBILITY_CHECK := true
+# Wait for QSEE before keymaster (helps FBE decrypt on msmnile)
+TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # TWRP Debug Flags
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
 
-# TWRP 14.1 recovery-tree compatibility
+# QPR2 / TWRP 14.1 recovery-tree compatibility
 BUILD_BROKEN_DUP_RULES := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
+BUILD_BROKEN_INCORRECT_PARTITION_IMAGES := true
