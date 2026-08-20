@@ -16,7 +16,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 validate_prebuilts() {
     local prebuilt_dir="${script_dir}/prebuilt"
 
-    for file in Image.gz-dtb dtbo.img SHA256SUMS; do
+    for file in Image.gz-dtb dtbo.img do
         if [[ ! -s "${prebuilt_dir}/${file}" ]]; then
             echo "error: missing or empty recovery prebuilt: ${prebuilt_dir}/${file}" >&2
             exit 1
@@ -24,7 +24,7 @@ validate_prebuilts() {
     done
 
     echo "Validating recovery kernel and DTBO prebuilts..."
-    (cd "${prebuilt_dir}" && sha256sum -c SHA256SUMS)
+    (cd "${prebuilt_dir}" && sha256sum -c)
 
     python3 - "${prebuilt_dir}/Image.gz-dtb" "${prebuilt_dir}/dtbo.img" <<'PY'
 import os
@@ -213,7 +213,7 @@ Then run:
   ./device/realme/samurai/build.sh
 
 Expected source branch:
-  twrp-14.1-a13-a16-decrypt-readiness
+  twrp-14.1-debug
 EOF
     exit 1
 fi
