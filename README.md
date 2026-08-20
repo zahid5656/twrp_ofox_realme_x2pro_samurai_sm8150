@@ -1,4 +1,4 @@
-TWRP Device configuration for realme X2 Pro (samurai)
+## TWRP Device configuration for Realme X2 Pro (samurai) ##
 
 ## Features
 
@@ -12,33 +12,43 @@ Works:
 - Backup/Restore
 - USB OTG
 
-## Compile
+## Compilation Procedure:
 
-First checkout minimal twrp source:
-
+# First Make a directory to build recovery image:
+```
+mkdir TWRP-14.1
+cd TWRP-14.1
+```
+# After that checkout minimal twrp source with shallow repo sync to save time:
 ```
 repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
 repo sync
-git clone https://github.com/zahid5656/twrp_device_realme_RMX1931.git -b twrp-14.1-a13-a16-decrypt-readiness device/realme/samurai
-
+git clone --depth=1 -b twrp-14.1-debug git@github.com:zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
 ```
-
-Finally execute these:
-
+# Finally execute these:
+```
+cd device/realme/samurai 
+export ALLOW_MISSING_DEPENDENCIES=true
+cd /home/titan/TWRP-14.1
+```
+# Start Compiling: 
 ```
 . build/envsetup.sh
 lunch twrp_samurai-ap2a-eng
 mka recoveryimage
-
 ```
 
-To test it:
-
+# Short single block command step to start compiling:
 ```
-fastboot boot out/target/product/samurai/recovery.img
+export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp_samurai-ap2a-eng && mka recoveryimage
+ ```
+ 
+# To test it (reboot to fastboot / bootloader):
+```
+fastboot flash recovery "/out/target/product/samurai/recovery.img"
 ```
 
-The build wrapper verifies the SHA-256 checksums and binary structure of the
+Extra Note: The build wrapper verifies the binary structure of the
 OpenELA 4.14.357 `Image.gz-dtb` and its matching two-entry `dtbo.img` before
 starting the Android build. It applies the included, idempotent TWRP 14.1
 source-compatibility patch set. After the build it unpacks `recovery.img`,
