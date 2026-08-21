@@ -2,18 +2,10 @@ sys.usb.controller=a600000.dwc3
 sys.usb.rndis.func.name=rndis_bam
 sys.usb.rmnet.func.name=rmnet_bam
 persist.sys.isUsbOtgEnabled=true
-
-# Crypto — match Android 12–16 FBE + metadata encryption (dm-default-key)
 ro.crypto.volume.filenames_mode=aes-256-cts
 ro.crypto.allow_encrypt_override=true
-ro.crypto.dm_default_key.options_format.version=2
-ro.crypto.volume.metadata.method=dm-default-key
-ro.crypto.volume.options=aes-256-xts:aes-256-cts:v2
-
-# Gatekeeper / Keymaster (samurai vendor still uses Keymaster 4.0 on A16)
 vendor.gatekeeper.disable_spu=true
-keymaster_ver=4.0
-
 ro.adb.secure=0
+keymaster_ver=4.0
 ro.board.platform=msmnile
 ro.product.board=msmnile

@@ -119,7 +119,7 @@ BOARD_USES_QCOM_FBE_DECRYPTION := true
 TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
-TW_USE_FSCRYPT_POLICY := 2
+TW_USE_FSCRYPT_POLICY := 1
 
 # Hack: Prevent anti rollback (match/exceed ROM security patch for decrypt)
 PLATFORM_VERSION := 99.87.36
