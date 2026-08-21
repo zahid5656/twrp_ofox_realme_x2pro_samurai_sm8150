@@ -1,16 +1,16 @@
 #
-# Copyright (C) 2024 Team Win Recovery Project
+# Copyright (C) 2022 Team Win Recovery Project
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# For building with minimal manifest in QPR2
+# For building with minimal manifest
 ALLOW_MISSING_DEPENDENCIES := true
 
 # Device Path
 DEVICE_PATH := device/realme/samurai
 
-# Architecture — SM8150 / Kryo 485 / TWRP 14.1
+# Architecture
 TARGET_ARCH := arm64
 TARGET_ARCH_VARIANT := armv8-2a
 TARGET_CPU_ABI := arm64-v8a
@@ -51,7 +51,7 @@ TARGET_USES_QCOM_BSP := true
 BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 pm.sleep_mode=1 service_locator.enable=1 swiotlb=2048 cgroup_disable=pressure
 BOARD_KERNEL_BASE := 0x00000000
 BOARD_KERNEL_PAGESIZE := 4096
-BOARD_KERNEL_TAGS_OFFSET := 0x00008000
+BOARD_KERNEL_TAGS_OFFSET := 0x00000100
 BOARD_RAMDISK_OFFSET     := 0x01000000
 BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 TARGET_KERNEL_ARCH := arm64
@@ -60,12 +60,6 @@ TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/Image.gz-dtb
 BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
 BOARD_INCLUDE_RECOVERY_DTBO := true
 BOARD_BOOTIMG_HEADER_VERSION := 1
-BOARD_MKBOOTIMG_ARGS := --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
-BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
-BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
-
-# AVB
-TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/system/etc/recovery.fstab
 BOARD_MKBOOTIMG_ARGS := --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
@@ -94,7 +88,6 @@ BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
-# Samurai userdata defaults to F2FS; recovery still supports both F2FS and ext4.
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 # Recovery
@@ -109,19 +102,21 @@ TARGET_COPY_OUT_ODM := odm
 TARGET_COPY_OUT_VENDOR := vendor
 
 # System as root
+BOARD_BUILD_SYSTEM_ROOT_IMAGE := true
 BOARD_ROOT_EXTRA_FOLDERS := bluetooth dsp firmware persist
 
 # Extras
 BOARD_SUPPRESS_SECURE_ERASE := true
 TARGET_SYSTEM_PROP += $(DEVICE_PATH)/system.prop
 
-# Crypto (Android 14 FBE compatibility)
+# Crypto (FBE v2 + metadata encryption — Android 11–16 / QPR2)
 BOARD_USES_METADATA_PARTITION := true
 BOARD_USES_QCOM_FBE_DECRYPTION := true
 TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
-TW_USE_FSCRYPT_POLICY := 1
+# Policy v2 required for A11+ FBE (LOS 23 / A16 uses v2+inlinecrypt+wrappedkey)
+TW_USE_FSCRYPT_POLICY := 2
 
 # Hack: Prevent anti rollback (match/exceed ROM security patch for decrypt)
 PLATFORM_VERSION := 99.87.36
@@ -135,6 +130,7 @@ TW_DEVICE_VERSION := Realme X2 Pro
 TW_THEME := portrait_hdpi
 RECOVERY_SDCARD_ON_DATA := true
 TARGET_RECOVERY_QCOM_RTC_FIX := true
+TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/system/etc/recovery.fstab
 TW_EXCLUDE_DEFAULT_USB_INIT := true
 TW_EXTRA_LANGUAGES := true
 TW_INCLUDE_NTFS_3G := true
@@ -157,12 +153,14 @@ TW_FORCE_KEYMASTER_VER := true
 TW_HAS_EDL_MODE := true
 TW_OZIP_DECRYPT_KEY := 1c4c1ea3a12531ae491b21bb31613c11
 TW_SKIP_COMPATIBILITY_CHECK := true
+# Wait for QSEE before keymaster (helps FBE decrypt on msmnile)
+TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # TWRP Debug Flags
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
 
-# QPR2 / TWRP 14.1 recovery-tree compatibility
+# TWRP 12.1 requirements
 BUILD_BROKEN_DUP_RULES := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 BUILD_BROKEN_MISSING_REQUIRED_MODULES := true

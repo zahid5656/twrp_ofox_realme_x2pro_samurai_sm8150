@@ -105,7 +105,7 @@ jobs:
         run: |
           mkdir -p workspace/device/realme
 
-          git clone --depth=1 \
+          git clone --depth=1 -b twrp-14.1-debug-2 \
             https://github.com/zahid5656/twrp_device_realme_RMX1931.git \
             workspace/device/realme/samurai
 
