@@ -23,7 +23,7 @@ cd TWRP-14.1
 ```
 repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
 repo sync
-git clone --depth=1 -b twrp-14.1-debug git@github.com:zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
+git clone --depth=1 -b twrp-14.1-debug-2 git@github.com:zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
 ```
 # Finally execute these:
 ```
