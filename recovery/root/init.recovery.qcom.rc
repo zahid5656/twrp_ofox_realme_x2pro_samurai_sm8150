@@ -55,6 +55,7 @@ service vendor.qti.vibrator /system/bin/vendor.qti.hardware.vibrator.service
     seclabel u:r:recovery:s0
 
 on boot
+    start variant-script
     start health-hal-2-1
     start vendor.qti.vibrator
     setprop sys.usb.config adb
