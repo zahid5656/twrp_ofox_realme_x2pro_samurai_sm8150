@@ -16,31 +16,31 @@ Works:
 
 # First Make a directory to build recovery image:
 ```
-mkdir TWRP-14.1
-cd TWRP-14.1
+mkdir twrp-12.1
+cd twrp-12.1
 ```
 # After that checkout minimal twrp source with shallow repo sync to save time:
 ```
-repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
+repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
 repo sync
-git clone --depth=1 -b twrp-14.1-debug-2 git@github.com:zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
+git clone --depth=1 -b twrp-12.1L-staging https://github.com/zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
 ```
 # Finally execute these:
 ```
 cd device/realme/samurai 
 export ALLOW_MISSING_DEPENDENCIES=true
-cd /home/titan/TWRP-14.1
+cd /home/titan/twrp-12.1L-staging
 ```
 # Start Compiling: 
 ```
 . build/envsetup.sh
-lunch twrp_samurai-ap2a-eng
+lunch twrp_samurai-eng
 mka recoveryimage
 ```
 
 # Short single block command step to start compiling:
 ```
-export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp_samurai-ap2a-eng && mka recoveryimage
+export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp_samurai-eng && mka recoveryimage
  ```
  
 # To test it (reboot to fastboot / bootloader):
@@ -48,7 +48,28 @@ export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp
 fastboot flash recovery "/out/target/product/samurai/recovery.img"
 ```
 
-Extra Note: The build wrapper verifies the binary structure of the
+## Some extra command for faster debugging build:
+
+# Single Block Command-1:
+```
+cd device/realme/samurai
+git clean -fdx
+git pull --ff-only
+```
+# Single Block Command-2:
+```
+cd ~/twrp-12.1 && \
+rm -rf out && \
+mkdir -p out/.ccache/tmp && \
+export CCACHE_DIR="$PWD/out/.ccache" && \
+export CCACHE_TEMPDIR="$PWD/out/.ccache/tmp" && \
+export ALLOW_MISSING_DEPENDENCIES=true && \
+source build/envsetup.sh && \
+lunch twrp_samurai-eng && \
+mka recoveryimage
+```
+
+`Extra Note:` The build wrapper verifies the binary structure of the
 OpenELA 4.14.357 `Image.gz-dtb` and its matching two-entry `dtbo.img` before
 starting the Android build. It applies the included, idempotent TWRP 14.1
 source-compatibility patch set. After the build it unpacks `recovery.img`,
