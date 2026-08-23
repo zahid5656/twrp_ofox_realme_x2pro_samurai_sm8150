@@ -58,3 +58,4 @@ on boot
     start health-hal-2-1
     start vendor.qti.vibrator
     setprop sys.usb.config adb
+    write /sys/class/leds/vibrator/level 1
