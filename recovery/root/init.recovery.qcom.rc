@@ -26,6 +26,7 @@
 #
 
 import /init.recovery.qcom_decrypt.rc
+import /init.recovery.usb.rc
 
 on init
     # Help prepdecrypt align OS version / security patch with system for FBE
