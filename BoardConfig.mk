@@ -4,6 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# TWRP uses a reduced Android manifest; allow omitted non-recovery modules.
+ALLOW_MISSING_DEPENDENCIES := true
+
 # Device Path
 DEVICE_PATH := device/realme/samurai
 
