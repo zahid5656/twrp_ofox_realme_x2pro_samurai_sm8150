@@ -16,12 +16,12 @@ load_RMX1931CN()
     echo "Chinese variant detected"
 }
 
-project=$(cat /proc/oplusVersion/operatorName)
-echo $project
+project="$(cat /proc/oplusVersion/operatorName 2>/dev/null)"
 
-case $project in
+case "$project" in
     "5") load_RMX1931L1 ;;
     "8") load_RMX1931CN ;;
+    *) echo "Unknown operator variant; keeping samurai identity" ;;
 esac
 
 resetprop "ro.build.date.utc" "1000000000"
