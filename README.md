@@ -71,3 +71,13 @@ mka recoveryimage
 `Extra Note:` This tree keeps the OpenELA 4.14.357 `Image.gz-dtb` and matching
 `dtbo.img` as pinned prebuilts. A successful build is not a substitute for
 booting the recovery and testing decryption on an RMX1931.
+
+## Regional firmware guard
+
+The recovery includes `/system/bin/firmware_variant_guard` for manually
+selected regional firmware-only packages. A Global package must invoke it with
+`global`; a China package must invoke it with `cn`. The guard requires the
+matching `operatorName` value (`5` for Global or `8` for China) and accepts the
+canonical `samurai`/`RMX1931` alias or its matching regional device name. It
+fails closed before any firmware image is written and never auto-selects a
+regional package.
