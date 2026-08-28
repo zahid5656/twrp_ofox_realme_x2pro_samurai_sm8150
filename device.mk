@@ -26,6 +26,10 @@ PRODUCT_PACKAGES += \
     qcom_decrypt \
     qcom_decrypt_fbe
 
+# Realme stock OZIP support (required when returning from stock ROM)
+PRODUCT_PACKAGES += \
+    ozip_decrypt
+
 # Recovery
 TARGET_RECOVERY_DEVICE_MODULES += \
     android.hardware.gatekeeper@1.0 \

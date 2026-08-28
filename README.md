@@ -11,6 +11,7 @@ Works:
 - Flashing (opengapps, roms, images and so on)
 - Backup/Restore
 - USB OTG
+- Realme OZIP decryption (stock-to-custom recovery)
 
 ## Compilation Procedure:
 
@@ -28,7 +29,6 @@ git clone --depth=1 -b twrp-12.1-aosp https://github.com/zahid5656/twrp_ofox_rea
 # Finally execute these:
 ```
 cd device/realme/samurai 
-export ALLOW_MISSING_DEPENDENCIES=true
 cd /home/titan/twrp-12.1
 ```
 # Start Compiling: 
@@ -40,7 +40,7 @@ mka recoveryimage
 
 # Short single block command step to start compiling:
 ```
-export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp_samurai-eng && mka recoveryimage
+source build/envsetup.sh && lunch twrp_samurai-eng && mka recoveryimage
  ```
  
 # To test it (reboot to fastboot / bootloader):
@@ -63,17 +63,11 @@ rm -rf out && \
 mkdir -p out/.ccache/tmp && \
 export CCACHE_DIR="$PWD/out/.ccache" && \
 export CCACHE_TEMPDIR="$PWD/out/.ccache/tmp" && \
-export ALLOW_MISSING_DEPENDENCIES=true && \
 source build/envsetup.sh && \
 lunch twrp_samurai-eng && \
 mka recoveryimage
 ```
 
-`Extra Note:` The build wrapper verifies the binary structure of the
-OpenELA 4.14.357 `Image.gz-dtb` and its matching two-entry `dtbo.img` before
-starting the Android build. It applies the included, idempotent TWRP 14.1
-source-compatibility patch set. After the build it unpacks `recovery.img`,
-checks the partition-size limit and ramdisk integrity, and requires the
-embedded kernel and recovery DTBO to match the pinned prebuilts byte-for-byte.
-A successful build is not a substitute for booting the recovery and testing
-decryption on an RMX1931.
+`Extra Note:` This tree keeps the OpenELA 4.14.355 `Image.gz-dtb` and matching
+`dtbo.img` as pinned prebuilts. A successful build is not a substitute for
+booting the recovery and testing decryption on an RMX1931.

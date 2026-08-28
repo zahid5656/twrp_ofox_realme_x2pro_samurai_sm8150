@@ -408,3 +408,6 @@ firmware_directories /vendor/firmware_mnt/image/
 /dev/block/sdf6                                      0660    root    system
 /dev/block/sdf7                                      0660    root    system
 /dev/block/sdf8                                      0660    root    system
+
+# AW8697 haptics (normal Android sets this in init.oppo.rc, which recovery does not import)
+/dev/aw8697_haptic                                   0660    system  audio
