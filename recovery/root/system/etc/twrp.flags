@@ -1,6 +1,9 @@
 # Android fstab file.
 # The filesystem that contains the filesystem checker binary (typically /system) cannot
 # specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+#
+# Partition presentation and backup flags are kept here; mount/decryption entries
+# remain in recovery.fstab.
 
 # mount point  fstype device                             device2              flags
 /boot          emmc   /dev/block/bootdevice/by-name/boot
@@ -15,7 +18,7 @@
 /odm_image     emmc   /dev/block/bootdevice/by-name/odm                          flags=backup=1;flashimg=1
 /vendor_image  emmc   /dev/block/bootdevice/by-name/vendor                       flags=backup=1;flashimg=1
 
-/metadata      ext4   /dev/block/bootdevice/by-name/metadata                     flags=backup=1;wipeingui
+/metadata      ext4   /dev/block/bootdevice/by-name/metadata                     flags=display="Metadata";backup=1;wipeingui
 /storage       auto   /data/media/0                                              flags=display="Internal Storage";usermrf;backup=1;fsflags="bind";removable
 /firmware      vfat   /dev/block/bootdevice/by-name/modem                        flags=display="Firmware";mounttodecrypt
 /misc          emmc   /dev/block/bootdevice/by-name/misc
@@ -31,4 +34,4 @@
 /vbmeta        emmc   /dev/block/bootdevice/by-name/vbmeta                       flags=display="Vbmeta";flashimg=1;backup=1
 
 # Removable storage
-/usb_otg       auto   /dev/block/sdg1                    /dev/block/sdg          flags=fsflags=utf8;display="USB-OTG";storage;removable
+/usb_otg       vfat   /dev/block/sdg1                    /dev/block/sdg          flags=fsflags=utf8;display="USB-OTG";storage;wipeingui;removable

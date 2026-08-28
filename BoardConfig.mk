@@ -21,7 +21,11 @@ TARGET_2ND_ARCH := arm
 TARGET_2ND_ARCH_VARIANT := armv8-2a
 TARGET_2ND_CPU_ABI := armeabi-v7a
 TARGET_2ND_CPU_ABI2 := armeabi
-TARGET_2ND_CPU_VARIANT := cortex-a76
+TARGET_2ND_CPU_VARIANT := cortex-a55
+
+# Recovery build/runtime policy
+ENABLE_CPUSETS := true
+ENABLE_SCHEDBOOST := true
 
 # GPT Utils
 BOARD_PROVIDES_GPTUTILS := true
@@ -30,6 +34,7 @@ BOARD_PROVIDES_GPTUTILS := true
 PRODUCT_PLATFORM := msmnile
 TARGET_BOOTLOADER_BOARD_NAME := msmnile
 TARGET_NO_BOOTLOADER := true
+TARGET_USES_UEFI := true
 
 # Platform
 BOARD_USES_QCOM_HARDWARE := true
@@ -37,6 +42,7 @@ QCOM_BOARD_PLATFORMS += msmnile
 TARGET_BOARD_PLATFORM := msmnile
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno640
 TARGET_USES_64_BIT_BINDER := true
+TARGET_USES_QCOM_BSP := true
 
 # Kernel
 BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 pm.sleep_mode=1 service_locator.enable=1 swiotlb=2048 cgroup_disable=pressure
@@ -111,6 +117,7 @@ TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
 TW_USE_FSCRYPT_POLICY := 2
+TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # Hack: Prevent anti rollback
 PLATFORM_VERSION := 99.87.36
@@ -129,6 +136,7 @@ TW_EXTRA_LANGUAGES := true
 TW_INCLUDE_NTFS_3G := true
 TW_USE_TOOLBOX := true
 TW_INCLUDE_RESETPROP := true
+TW_INCLUDE_LIBRESETPROP := true
 TW_INPUT_BLACKLIST := "hbtp_vm"
 TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS := 1023
