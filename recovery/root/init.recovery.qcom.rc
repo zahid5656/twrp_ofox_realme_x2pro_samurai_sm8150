@@ -26,6 +26,7 @@
 #
 
 import /init.recovery.qcom_decrypt.rc
+import /init.recovery.usb.rc
 
 on init
     # Samurai has a dedicated recovery partition; always align the temporary
