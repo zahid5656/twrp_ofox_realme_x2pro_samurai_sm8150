@@ -68,6 +68,6 @@ lunch twrp_samurai-eng && \
 mka recoveryimage
 ```
 
-`Extra Note:` This tree keeps the OpenELA 4.14.355 `Image.gz-dtb` and matching
+`Extra Note:` This tree keeps the OpenELA 4.14.357 `Image.gz-dtb` and matching
 `dtbo.img` as pinned prebuilts. A successful build is not a substitute for
 booting the recovery and testing decryption on an RMX1931.
