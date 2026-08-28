@@ -1,0 +1,24 @@
+#!/system/bin/sh
+
+# Firmware packages call this guard before writing any low-level image.
+# The operator code is the variant discriminator; RMX1931 is only the
+# common model alias and is accepted only together with the matching code.
+
+expected="${1:-}"
+operator="$(cat /proc/oppoVersion/operatorName 2>/dev/null)"
+device="$(getprop ro.product.device 2>/dev/null)"
+
+case "${expected}:${operator}:${device}" in
+    global:5:samurai|global:5:RMX1931|global:5:RMX1931L1)
+        echo "Global variant verified (operator=${operator}, device=${device})"
+        exit 0
+        ;;
+    cn:8:samurai|cn:8:RMX1931|cn:8:RMX1931CN)
+        echo "Chinese variant verified (operator=${operator}, device=${device})"
+        exit 0
+        ;;
+    *)
+        echo "Refusing ${expected:-unknown} firmware: operator=${operator:-unknown}, device=${device:-unknown}" >&2
+        exit 1
+        ;;
+esac
