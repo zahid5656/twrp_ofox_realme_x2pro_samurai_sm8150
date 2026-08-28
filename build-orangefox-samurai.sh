@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Realme X2 Pro / samurai
-# OrangeFox R12.1 build script
+# OrangeFox fox_12.1 / R12.0_1 build script
 # GCP / Local Ubuntu
 #
 # Purpose:
@@ -36,7 +36,7 @@ DEVICE_BRANCH="fox-12.1"
 BUILD_LOG="${HOME_DIR}/orangefox-samurai-build.log"
 
 echo "============================================================"
-echo " OrangeFox R12.1 Build - Realme X2 Pro / samurai"
+echo " OrangeFox fox_12.1 / R12.0_1 Build - Realme X2 Pro / samurai"
 echo "============================================================"
 echo "HOME       : ${HOME_DIR}"
 echo "FOX_DIR    : ${FOX_DIR}"
@@ -163,8 +163,9 @@ cd "${FOX_DIR}" || exit 1
 export FOX_BUILD_DEVICE=samurai
 export OF_DISABLE_MIUI_SPECIFIC_FEATURES=1
 export OF_FORCE_PREBUILT_KERNEL=1
+export OF_DEFAULT_KEYMASTER_VERSION=4.0
 export OF_MAINTAINER="ETHICAL △ TITAN"
-export FOX_VARIANT="Unofficial"
+export FOX_MAINTAINER_PATCH_VERSION=1
 
 # RMX1931 / samurai is A-only.
 # Do NOT set these OrangeFox A/B variables.
@@ -205,6 +206,7 @@ echo "ANDROID_BUILD_TOP=${ANDROID_BUILD_TOP:-}"
 echo "FOX_MANIFEST_ROOT=${FOX_MANIFEST_ROOT:-}"
 echo "FOX_BUILD_DEVICE=${FOX_BUILD_DEVICE}"
 echo "OF_DEFAULT_KEYMASTER_VERSION=${OF_DEFAULT_KEYMASTER_VERSION}"
+echo "FOX_MAINTAINER_PATCH_VERSION=${FOX_MAINTAINER_PATCH_VERSION}"
 echo
 
 # ---------------------------------------------------------------------------
@@ -265,19 +267,17 @@ echo "Product output:"
 echo "  ${ANDROID_PRODUCT_OUT}"
 echo
 
-OFOX_PREFIX="OrangeFox-R12.1-Unofficial"
-
 echo "Expected OrangeFox artifacts:"
-echo "  ${OFOX_PREFIX}*.img"
-echo "  ${OFOX_PREFIX}*.zip"
+echo "  OrangeFox-*.img"
+echo "  OrangeFox-*.zip"
 echo "  recovery.img"
 echo
 echo "Found:"
 
 find "${ANDROID_PRODUCT_OUT}" -maxdepth 2 -type f \
   \( \
-    -name "${OFOX_PREFIX}*.img" -o \
-    -name "${OFOX_PREFIX}*.zip" -o \
+    -name 'OrangeFox-*.img' -o \
+    -name 'OrangeFox-*.zip' -o \
     -name 'recovery.img' \
   \) \
   -print 2>/dev/null | sort || true
@@ -292,4 +292,4 @@ fi
 
 echo "Build log:"
 echo "  ${BUILD_LOG}"
-echo "========================================================
+echo "========================================================"
