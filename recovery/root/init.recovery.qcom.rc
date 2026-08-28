@@ -29,7 +29,7 @@ import /init.recovery.qcom_decrypt.rc
 
 on fs
     wait /dev/block/platform/soc/${ro.boot.bootdevice}
-    symlink /dev/block/platform/soc/${ro.boot.bootdevice} /dev/block/bootdevice	
+    symlink /dev/block/platform/soc/${ro.boot.bootdevice} /dev/block/bootdevice
     write /sys/class/power_supply/usb/otg_switch 1
     export ANDROID_ROOT /system_root
     write /sys/class/power_supply/usb/otg_switch 1
@@ -40,15 +40,10 @@ service variant-script /system/bin/variant-script.sh
     disabled
     oneshot
     seclabel u:r:recovery:s0
-    
-service vendor.qti.vibrator /system/bin/vendor.qti.hardware.vibrator.service
-    user root
-    group root
-    disabled
-    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib:/system/lib64:/system/lib:/sbin
-    seclabel u:r:recovery:s0	
 
 on boot
+    start variant-script
     start health-hal-2-1
-    start vendor.qti.vibrator
+
     setprop sys.usb.config adb
+    write /sys/class/leds/vibrator/level 2
