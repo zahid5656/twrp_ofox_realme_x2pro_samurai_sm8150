@@ -77,3 +77,21 @@ checks the partition-size limit and ramdisk integrity, and requires the
 embedded kernel and recovery DTBO to match the pinned prebuilts byte-for-byte.
 A successful build is not a substitute for booting the recovery and testing
 decryption on an RMX1931.
+
+# OrangeFox Build:
+
+```bash
+repo init --depth=1 -u https://gitlab.com/OrangeFox/manifest.git -b fox_12.1
+repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+```
+
+# OR Script:
+```
+chmod +x build-orangefox-samurai.sh
+./build-orangefox-samurai.sh
+```
+
+# OR Manual:
+```
+OrangeFox_recovery_build_manual.md
+```
