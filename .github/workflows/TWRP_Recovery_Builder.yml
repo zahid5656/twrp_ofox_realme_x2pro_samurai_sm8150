@@ -25,44 +25,29 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Inspect and clean hosted runner
+      - name: Checkout private Samurai device tree
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: device-tree
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Clean GitHub-hosted runner and maximize disk headroom
         shell: bash
         run: |
           set -euxo pipefail
 
-          echo '=== Disk state before cleanup ==='
+          echo '=== Runner state before cleanup ==='
           df -hT
           free -h || true
           swapon --show || true
 
-          echo '=== Large preinstalled runner paths before cleanup ==='
-          for path in \
-            /usr/local/lib/android \
-            /opt/hostedtoolcache \
-            /usr/share/dotnet \
-            /opt/ghc \
-            /usr/local/.ghcup \
-            /usr/share/swift \
-            /usr/local/share/boost \
-            /usr/local/share/chromium \
-            /opt/microsoft \
-            /opt/az \
-            /var/lib/docker \
-            /var/lib/containerd \
-            /home/runner/.cache; do
-            if [ -e "$path" ]; then
-              sudo du -sh "$path" 2>/dev/null || true
-            fi
-          done
-
-          # This job does not use Docker/containers. Stop them before removing
-          # their disposable image/layer state.
+          # This recovery build does not use Docker/containers or the large
+          # preinstalled SDK/toolchains below. Remove only disposable runner
+          # content; never touch $GITHUB_WORKSPACE or checked-out repositories.
           sudo systemctl stop docker.service docker.socket containerd.service 2>/dev/null || true
-          sudo docker system prune -af --volumes 2>/dev/null || true
-
-          # Remove only disposable software/caches from the GitHub-hosted runner.
-          # Never touch $GITHUB_WORKSPACE, source repositories, branches, refs,
-          # the synced Android tree, device files, kernel prebuilts, or DTBO.
           sudo rm -rf \
             /usr/local/lib/android \
             /opt/hostedtoolcache/* \
@@ -76,15 +61,38 @@ jobs:
             /opt/az \
             /var/lib/docker \
             /var/lib/containerd \
-            /home/runner/.cache/* || true
+            /home/runner/.cache || true
 
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* || true
 
-          echo '=== Disk state after cleanup ==='
-          df -hT
+          # GitHub's standard runner currently has a disk-backed /swapfile.
+          # Prefer zram; only remove /swapfile after zram is actually active.
+          zram_ready=false
+          if swapon --show --noheadings --raw --output=NAME | grep -qx '/dev/zram0'; then
+            zram_ready=true
+          elif sudo modprobe zram num_devices=1 2>/dev/null && [ -e /sys/block/zram0/disksize ]; then
+            sudo swapoff /dev/zram0 2>/dev/null || true
+            echo 1 | sudo tee /sys/block/zram0/reset >/dev/null 2>&1 || true
+            if echo $((4 * 1024 * 1024 * 1024)) | sudo tee /sys/block/zram0/disksize >/dev/null \
+              && sudo mkswap /dev/zram0 \
+              && sudo swapon -p 100 /dev/zram0; then
+              zram_ready=true
+            fi
+          fi
 
-      - name: Select build filesystem and configure safe swap
+          if [ "$zram_ready" = true ] \
+            && swapon --show --noheadings --raw --output=NAME | grep -qx '/swapfile'; then
+            sudo swapoff /swapfile
+            sudo rm -f /swapfile
+          fi
+
+          echo '=== Runner state after cleanup ==='
+          df -hT
+          free -h || true
+          swapon --show || true
+
+      - name: Select build filesystem
         shell: bash
         run: |
           set -euxo pipefail
@@ -103,33 +111,7 @@ jobs:
           mkdir -p "$build_root"
           echo "BUILD_ROOT=$build_root" >> "$GITHUB_ENV"
           echo "Selected BUILD_ROOT=$build_root"
-
-          # Prefer compressed RAM swap. It consumes no filesystem capacity.
-          swap_ready=false
-          if ! swapon --show --noheadings | grep -q .; then
-            if sudo modprobe zram num_devices=1 2>/dev/null && [ -e /sys/block/zram0/disksize ]; then
-              echo $((4 * 1024 * 1024 * 1024)) | sudo tee /sys/block/zram0/disksize
-              sudo mkswap /dev/zram0
-              sudo swapon -p 100 /dev/zram0
-              swap_ready=true
-            fi
-          else
-            swap_ready=true
-          fi
-
-          # Fall back to a small swap file only when /mnt is a separate
-          # filesystem and still has >40 GiB free. Never consume the full disk
-          # that holds the Android source/build tree.
-          if [ "$swap_ready" = false ] && [ "$mnt_dev" != "$root_dev" ] && [ "$mnt_free" -gt $((40 * 1024 * 1024 * 1024)) ]; then
-            sudo fallocate -l 4G /mnt/twrp-build.swap
-            sudo chmod 600 /mnt/twrp-build.swap
-            sudo mkswap /mnt/twrp-build.swap
-            sudo swapon /mnt/twrp-build.swap
-          fi
-
-          df -hT
-          free -h || true
-          swapon --show || true
+          df -hT "$build_root"
 
       - name: Install build dependencies
         shell: bash
@@ -154,24 +136,6 @@ jobs:
         with:
           distribution: zulu
           java-version: '11'
-
-      - name: Restore compiler cache
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/.ccache
-          key: twrp-ccache-${{ runner.os }}-12.1-samurai-${{ github.sha }}
-          restore-keys: |
-            twrp-ccache-${{ runner.os }}-12.1-samurai-
-
-      - name: Configure ccache
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p "$CCACHE_DIR"
-          ccache -M 4G
-          ccache --set-config=compression=true
-          ccache --set-config=compression_level=6
-          ccache -s
 
       - name: Install repo tool
         shell: bash
@@ -211,23 +175,47 @@ jobs:
             -j4
 
           echo '=== Disk state after repo sync ==='
-          df -hT
-          du -sh "$BUILD_ROOT/.repo" 2>/dev/null || true
-          du -sh "$BUILD_ROOT" 2>/dev/null || true
+          df -hT "$BUILD_ROOT"
 
-      - name: Fetch this Samurai device tree at the workflow commit
+      - name: Restore compiler cache
+        uses: actions/cache@v6
+        with:
+          path: /home/runner/.ccache
+          key: twrp-ccache-${{ runner.os }}-12.1-samurai-${{ github.sha }}
+          restore-keys: |
+            twrp-ccache-${{ runner.os }}-12.1-samurai-
+
+      - name: Configure bounded ccache
         shell: bash
         run: |
           set -euxo pipefail
-          cd "$BUILD_ROOT"
-          mkdir -p "$(dirname "$DEVICE_PATH")"
-          git init "$DEVICE_PATH"
-          git -C "$DEVICE_PATH" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -C "$DEVICE_PATH" fetch --depth=1 origin "$GITHUB_SHA"
-          git -C "$DEVICE_PATH" checkout --detach FETCH_HEAD
-          echo "Device tree commit: $(git -C "$DEVICE_PATH" rev-parse HEAD)"
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 1G
+          ccache --set-config=compression=true
+          ccache --set-config=compression_level=6
+          ccache -c
+          ccache -s
 
-      - name: Validate Samurai product configuration
+      - name: Install exact Samurai device tree into TWRP source
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          source_tree="$GITHUB_WORKSPACE/device-tree"
+          checked_sha="$(git -C "$source_tree" rev-parse HEAD)"
+          test "$checked_sha" = "$GITHUB_SHA"
+
+          target_tree="$BUILD_ROOT/$DEVICE_PATH"
+          if [ -e "$target_tree" ]; then
+            echo "Refusing to overwrite unexpected existing path: $target_tree" >&2
+            exit 1
+          fi
+
+          mkdir -p "$target_tree"
+          rsync -a --exclude='.git/' "$source_tree/" "$target_tree/"
+          echo "Device tree commit: $checked_sha"
+
+      - name: Validate Samurai build inputs
         shell: bash
         run: |
           set -euxo pipefail
@@ -236,22 +224,36 @@ jobs:
           test -f "$DEVICE_PATH/twrp_${DEVICE}.mk"
           test -f "$DEVICE_PATH/BoardConfig.mk"
           test -f "$DEVICE_PATH/device.mk"
+          test -s "$DEVICE_PATH/prebuilt/Image.gz-dtb"
+          test -s "$DEVICE_PATH/prebuilt/dtbo.img"
           grep -q 'COMMON_LUNCH_CHOICES := twrp_samurai-eng' "$DEVICE_PATH/AndroidProducts.mk"
+          grep -q '^TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/Image.gz-dtb' "$DEVICE_PATH/BoardConfig.mk"
+          grep -q '^BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img' "$DEVICE_PATH/BoardConfig.mk"
+          df -hT "$BUILD_ROOT"
 
       - name: Build TWRP recovery
         shell: bash
         run: |
           set -euxo pipefail
           cd "$BUILD_ROOT"
+
+          free_bytes="$(df -PB1 "$BUILD_ROOT" | awk 'NR==2 {print $4}')"
+          if [ "$free_bytes" -lt $((12 * 1024 * 1024 * 1024)) ]; then
+            ccache -M 512M
+            ccache -c
+          fi
+
           export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
           export CCACHE_EXEC=/usr/bin/ccache
           export CCACHE_DIR="$CCACHE_DIR"
+
           source build/envsetup.sh
           lunch twrp_${DEVICE}-eng
           mka recoveryimage -j"$(nproc --all)"
+
           ccache -s || true
-          df -hT
+          df -hT "$BUILD_ROOT"
 
       - name: Verify recovery.img
         id: verify
