@@ -11,7 +11,6 @@ Works:
 - Flashing (opengapps, roms, images and so on)
 - Backup/Restore
 - USB OTG
-- Realme OZIP decryption (stock-to-custom recovery)
 
 ## Compilation Procedure:
 
@@ -24,12 +23,13 @@ cd twrp-12.1
 ```
 repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
 repo sync
-git clone --depth=1 -b twrp-12.1-aosp https://github.com/zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150.git device/realme/samurai
+git clone --depth=1 -b twrp-12.1L-staging https://github.com/zahid5656/twrp_device_realme_RMX1931.git device/realme/samurai
 ```
 # Finally execute these:
 ```
 cd device/realme/samurai 
-cd /home/titan/twrp-12.1
+export ALLOW_MISSING_DEPENDENCIES=true
+cd /home/titan/twrp-12.1L-staging
 ```
 # Start Compiling: 
 ```
@@ -40,7 +40,7 @@ mka recoveryimage
 
 # Short single block command step to start compiling:
 ```
-source build/envsetup.sh && lunch twrp_samurai-eng && mka recoveryimage
+export ALLOW_MISSING_DEPENDENCIES=true && source build/envsetup.sh && lunch twrp_samurai-eng && mka recoveryimage
  ```
  
 # To test it (reboot to fastboot / bootloader):
@@ -63,22 +63,35 @@ rm -rf out && \
 mkdir -p out/.ccache/tmp && \
 export CCACHE_DIR="$PWD/out/.ccache" && \
 export CCACHE_TEMPDIR="$PWD/out/.ccache/tmp" && \
+export ALLOW_MISSING_DEPENDENCIES=true && \
 source build/envsetup.sh && \
 lunch twrp_samurai-eng && \
 mka recoveryimage
 ```
 
-`Extra Note:` This tree keeps the OpenELA 4.14.357 `Image.gz-dtb` and matching
-`dtbo.img` as pinned prebuilts. A successful build is not a substitute for
-booting the recovery and testing decryption on an RMX1931.
+`Extra Note:` The build wrapper verifies the binary structure of the
+OpenELA 4.14.357 `Image.gz-dtb` and its matching two-entry `dtbo.img` before
+starting the Android build. It applies the included, idempotent TWRP 14.1
+source-compatibility patch set. After the build it unpacks `recovery.img`,
+checks the partition-size limit and ramdisk integrity, and requires the
+embedded kernel and recovery DTBO to match the pinned prebuilts byte-for-byte.
+A successful build is not a substitute for booting the recovery and testing
+decryption on an RMX1931.
 
-## Regional firmware guard
+# OrangeFox Build:
 
-The recovery includes `/system/bin/firmware_variant_guard` for manually
-selected regional firmware-only packages. The official full Global F.14 OTA
-keeps its own stock assertion (`RMX1931L1` properties); a reduced firmware-only
-package may invoke this guard with `global`, while a separate China package may
-invoke it with `cn`. The guard requires the matching `operatorName` value (`5`
-for Global or `8` for China) and accepts the canonical `samurai`/`RMX1931`
-alias or its matching regional device name. It fails closed before any firmware
-image is written and never auto-selects a regional package.
+```bash
+repo init --depth=1 -u https://gitlab.com/OrangeFox/manifest.git -b fox_12.1
+repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+```
+
+# OR Script:
+```
+chmod +x build-orangefox-samurai.sh
+./build-orangefox-samurai.sh
+```
+
+# OR Manual:
+```
+OrangeFox_recovery_build_manual.md
+```
