@@ -16,6 +16,7 @@ env:
   MANIFEST_URL: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
   MANIFEST_BRANCH: twrp-12.1
   OUT_DIR: out/target/product/samurai
+  CCACHE_DIR: /home/runner/.ccache
 
 jobs:
   build:
@@ -24,32 +25,153 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Free runner disk space
+      - name: Inspect and clean hosted runner
         shell: bash
         run: |
           set -euxo pipefail
-          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet /opt/hostedtoolcache/CodeQL || true
-          df -h
+
+          echo '=== Disk state before cleanup ==='
+          df -hT
+          free -h || true
+          swapon --show || true
+
+          echo '=== Large preinstalled runner paths before cleanup ==='
+          for path in \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift \
+            /usr/local/share/boost \
+            /usr/local/share/chromium \
+            /opt/microsoft \
+            /opt/az \
+            /var/lib/docker \
+            /var/lib/containerd \
+            /home/runner/.cache; do
+            if [ -e "$path" ]; then
+              sudo du -sh "$path" 2>/dev/null || true
+            fi
+          done
+
+          # This job does not use Docker/containers. Stop them before removing
+          # their disposable image/layer state.
+          sudo systemctl stop docker.service docker.socket containerd.service 2>/dev/null || true
+          sudo docker system prune -af --volumes 2>/dev/null || true
+
+          # Remove only disposable software/caches from the GitHub-hosted runner.
+          # Never touch $GITHUB_WORKSPACE, source repositories, branches, refs,
+          # the synced Android tree, device files, kernel prebuilts, or DTBO.
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/* \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift \
+            /usr/local/share/boost \
+            /usr/local/share/chromium \
+            /opt/microsoft \
+            /opt/az \
+            /var/lib/docker \
+            /var/lib/containerd \
+            /home/runner/.cache/* || true
+
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* || true
+
+          echo '=== Disk state after cleanup ==='
+          df -hT
+
+      - name: Select build filesystem and configure safe swap
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          root_dev="$(df -P "$GITHUB_WORKSPACE" | awk 'NR==2 {print $1}')"
+          root_free="$(df -PB1 "$GITHUB_WORKSPACE" | awk 'NR==2 {print $4}')"
+          mnt_dev="$(df -P /mnt | awk 'NR==2 {print $1}')"
+          mnt_free="$(df -PB1 /mnt | awk 'NR==2 {print $4}')"
+
+          if [ "$mnt_dev" != "$root_dev" ] && [ "$mnt_free" -gt "$root_free" ]; then
+            build_root="/mnt/twrp-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          else
+            build_root="$GITHUB_WORKSPACE/workspace"
+          fi
+
+          mkdir -p "$build_root"
+          echo "BUILD_ROOT=$build_root" >> "$GITHUB_ENV"
+          echo "Selected BUILD_ROOT=$build_root"
+
+          # Prefer compressed RAM swap. It consumes no filesystem capacity.
+          swap_ready=false
+          if ! swapon --show --noheadings | grep -q .; then
+            if sudo modprobe zram num_devices=1 2>/dev/null && [ -e /sys/block/zram0/disksize ]; then
+              echo $((4 * 1024 * 1024 * 1024)) | sudo tee /sys/block/zram0/disksize
+              sudo mkswap /dev/zram0
+              sudo swapon -p 100 /dev/zram0
+              swap_ready=true
+            fi
+          else
+            swap_ready=true
+          fi
+
+          # Fall back to a small swap file only when /mnt is a separate
+          # filesystem and still has >40 GiB free. Never consume the full disk
+          # that holds the Android source/build tree.
+          if [ "$swap_ready" = false ] && [ "$mnt_dev" != "$root_dev" ] && [ "$mnt_free" -gt $((40 * 1024 * 1024 * 1024)) ]; then
+            sudo fallocate -l 4G /mnt/twrp-build.swap
+            sudo chmod 600 /mnt/twrp-build.swap
+            sudo mkswap /mnt/twrp-build.swap
+            sudo swapon /mnt/twrp-build.swap
+          fi
+
+          df -hT
+          free -h || true
+          swapon --show || true
 
       - name: Install build dependencies
         shell: bash
         run: |
           set -euxo pipefail
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
-            git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev \
+            gh git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev \
             libbz2-dev libelf-dev libgflags-dev libgl1-mesa-dev liblz4-tool \
             libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libtinfo5 \
             libxml2-utils libwxgtk3.0-gtk3-dev lzma lzop ncftp pngcrush \
             qemu-user-static rsync schedtool squashfs-tools x11proto-core-dev \
             xsltproc zip zlib1g-dev
 
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* || true
+          df -hT
+
       - name: Set up Java 11
         uses: actions/setup-java@v4
         with:
           distribution: zulu
           java-version: '11'
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.ccache
+          key: twrp-ccache-${{ runner.os }}-12.1-samurai-${{ github.sha }}
+          restore-keys: |
+            twrp-ccache-${{ runner.os }}-12.1-samurai-
+
+      - name: Configure ccache
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$CCACHE_DIR"
+          ccache -M 4G
+          ccache --set-config=compression=true
+          ccache --set-config=compression_level=6
+          ccache -s
 
       - name: Install repo tool
         shell: bash
@@ -64,10 +186,12 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/workspace"
-          cd "$GITHUB_WORKSPACE/workspace"
+          cd "$BUILD_ROOT"
           "$HOME/bin/repo" init \
             --depth=1 \
+            --partial-clone \
+            --clone-filter=blob:limit=10M \
+            --no-clone-bundle \
             -u "$MANIFEST_URL" \
             -b "$MANIFEST_BRANCH"
 
@@ -75,7 +199,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          cd "$GITHUB_WORKSPACE/workspace"
+          cd "$BUILD_ROOT"
           "$HOME/bin/repo" sync \
             -c \
             --force-sync \
@@ -83,13 +207,19 @@ jobs:
             --no-tags \
             --optimized-fetch \
             --prune \
-            -j"$(nproc --all)"
+            --fail-fast \
+            -j4
+
+          echo '=== Disk state after repo sync ==='
+          df -hT
+          du -sh "$BUILD_ROOT/.repo" 2>/dev/null || true
+          du -sh "$BUILD_ROOT" 2>/dev/null || true
 
       - name: Fetch this Samurai device tree at the workflow commit
         shell: bash
         run: |
           set -euxo pipefail
-          cd "$GITHUB_WORKSPACE/workspace"
+          cd "$BUILD_ROOT"
           mkdir -p "$(dirname "$DEVICE_PATH")"
           git init "$DEVICE_PATH"
           git -C "$DEVICE_PATH" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
@@ -101,7 +231,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          cd "$GITHUB_WORKSPACE/workspace"
+          cd "$BUILD_ROOT"
           test -f "$DEVICE_PATH/AndroidProducts.mk"
           test -f "$DEVICE_PATH/twrp_${DEVICE}.mk"
           test -f "$DEVICE_PATH/BoardConfig.mk"
@@ -112,21 +242,23 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          cd "$GITHUB_WORKSPACE/workspace"
+          cd "$BUILD_ROOT"
           export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
           export CCACHE_EXEC=/usr/bin/ccache
-          ccache -M 8G
+          export CCACHE_DIR="$CCACHE_DIR"
           source build/envsetup.sh
           lunch twrp_${DEVICE}-eng
           mka recoveryimage -j"$(nproc --all)"
+          ccache -s || true
+          df -hT
 
       - name: Verify recovery.img
         id: verify
         shell: bash
         run: |
           set -euxo pipefail
-          RECOVERY="$GITHUB_WORKSPACE/workspace/$OUT_DIR/recovery.img"
+          RECOVERY="$BUILD_ROOT/$OUT_DIR/recovery.img"
           test -s "$RECOVERY"
           cp "$RECOVERY" "$GITHUB_WORKSPACE/recovery.img"
           cd "$GITHUB_WORKSPACE"
