@@ -16,6 +16,7 @@ env:
   MANIFEST_URL: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
   MANIFEST_BRANCH: twrp-12.1
   OUT_DIR: out/target/product/samurai
+  BUILD_ROOT: ${{ github.workspace }}/workspace
   CCACHE_DIR: /home/runner/.ccache
 
 jobs:
@@ -42,11 +43,11 @@ jobs:
           echo '=== Runner state before cleanup ==='
           df -hT
           free -h || true
-          swapon --show || true
+          cat /proc/swaps || true
 
-          # This recovery build does not use Docker/containers or the large
-          # preinstalled SDK/toolchains below. Remove only disposable runner
-          # content; never touch $GITHUB_WORKSPACE or checked-out repositories.
+          # Remove only disposable software from the fresh GitHub-hosted VM.
+          # Never touch $GITHUB_WORKSPACE, $BUILD_ROOT, .repo, device sources,
+          # repository refs/history, kernel prebuilts, DTBO, BoardConfig, or fstab.
           sudo systemctl stop docker.service docker.socket containerd.service 2>/dev/null || true
           sudo rm -rf \
             /usr/local/lib/android \
@@ -66,12 +67,14 @@ jobs:
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* || true
 
-          # GitHub's standard runner currently has a disk-backed /swapfile.
-          # Prefer zram; only remove /swapfile after zram is actually active.
+          # Prefer zram when the runner kernel exposes it. Keep GitHub's disk
+          # swapfile unless zram is confirmed active first.
           zram_ready=false
-          if swapon --show --noheadings --raw --output=NAME | grep -qx '/dev/zram0'; then
+          if grep -q '^/dev/zram0[[:space:]]' /proc/swaps 2>/dev/null; then
             zram_ready=true
-          elif sudo modprobe zram num_devices=1 2>/dev/null && [ -e /sys/block/zram0/disksize ]; then
+          elif sudo modprobe zram num_devices=1 2>/dev/null \
+            && [ -b /dev/zram0 ] \
+            && [ -e /sys/block/zram0/disksize ]; then
             sudo swapoff /dev/zram0 2>/dev/null || true
             echo 1 | sudo tee /sys/block/zram0/reset >/dev/null 2>&1 || true
             if echo $((4 * 1024 * 1024 * 1024)) | sudo tee /sys/block/zram0/disksize >/dev/null \
@@ -82,36 +85,17 @@ jobs:
           fi
 
           if [ "$zram_ready" = true ] \
-            && swapon --show --noheadings --raw --output=NAME | grep -qx '/swapfile'; then
+            && grep -q '^/swapfile[[:space:]]' /proc/swaps 2>/dev/null; then
             sudo swapoff /swapfile
             sudo rm -f /swapfile
           fi
 
+          mkdir -p "$BUILD_ROOT"
+
           echo '=== Runner state after cleanup ==='
           df -hT
           free -h || true
-          swapon --show || true
-
-      - name: Select build filesystem
-        shell: bash
-        run: |
-          set -euxo pipefail
-
-          root_dev="$(df -P "$GITHUB_WORKSPACE" | awk 'NR==2 {print $1}')"
-          root_free="$(df -PB1 "$GITHUB_WORKSPACE" | awk 'NR==2 {print $4}')"
-          mnt_dev="$(df -P /mnt | awk 'NR==2 {print $1}')"
-          mnt_free="$(df -PB1 /mnt | awk 'NR==2 {print $4}')"
-
-          if [ "$mnt_dev" != "$root_dev" ] && [ "$mnt_free" -gt "$root_free" ]; then
-            build_root="/mnt/twrp-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          else
-            build_root="$GITHUB_WORKSPACE/workspace"
-          fi
-
-          mkdir -p "$build_root"
-          echo "BUILD_ROOT=$build_root" >> "$GITHUB_ENV"
-          echo "Selected BUILD_ROOT=$build_root"
-          df -hT "$build_root"
+          cat /proc/swaps || true
 
       - name: Install build dependencies
         shell: bash
@@ -129,7 +113,7 @@ jobs:
 
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* || true
-          df -hT
+          df -hT "$BUILD_ROOT"
 
       - name: Set up Java 11
         uses: actions/setup-java@v5
@@ -146,10 +130,19 @@ jobs:
           chmod +x "$HOME/bin/repo"
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
+      - name: Restore persistent TWRP source objects
+        id: twrp-source-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ github.workspace }}/workspace/.repo
+          key: twrp-source-${{ runner.os }}-12.1-seed-v1
+
       - name: Initialize TWRP 12.1 source
         shell: bash
         run: |
           set -euxo pipefail
+          mkdir -p "$BUILD_ROOT"
           cd "$BUILD_ROOT"
           "$HOME/bin/repo" init \
             --depth=1 \
@@ -159,7 +152,7 @@ jobs:
             -u "$MANIFEST_URL" \
             -b "$MANIFEST_BRANCH"
 
-      - name: Sync TWRP source
+      - name: Sync or update TWRP source
         shell: bash
         run: |
           set -euxo pipefail
@@ -174,23 +167,34 @@ jobs:
             --fail-fast \
             -j4
 
-          echo '=== Disk state after repo sync ==='
+          echo '=== TWRP source state after sync ==='
+          "$HOME/bin/repo" manifest -r -o "$RUNNER_TEMP/twrp-pinned-manifest.xml"
+          test -s "$RUNNER_TEMP/twrp-pinned-manifest.xml"
+          du -sh "$BUILD_ROOT/.repo" 2>/dev/null || true
           df -hT "$BUILD_ROOT"
 
-      - name: Restore compiler cache
-        uses: actions/cache@v6
+      - name: Save persistent TWRP source objects
+        if: steps.twrp-source-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ github.workspace }}/workspace/.repo
+          key: twrp-source-${{ runner.os }}-12.1-seed-v1
+
+      - name: Restore compiler cache seed
+        id: ccache-restore
+        continue-on-error: true
+        uses: actions/cache/restore@v6
         with:
           path: /home/runner/.ccache
-          key: twrp-ccache-${{ runner.os }}-12.1-samurai-${{ github.sha }}
-          restore-keys: |
-            twrp-ccache-${{ runner.os }}-12.1-samurai-
+          key: twrp-ccache-${{ runner.os }}-12.1-samurai-seed-v1
 
       - name: Configure bounded ccache
         shell: bash
         run: |
           set -euxo pipefail
           mkdir -p "$CCACHE_DIR"
-          ccache -M 1G
+          ccache -M 512M
           ccache --set-config=compression=true
           ccache --set-config=compression_level=6
           ccache -c
@@ -234,14 +238,10 @@ jobs:
       - name: Build TWRP recovery
         shell: bash
         run: |
-          set -euxo pipefail
+          # Android's envsetup.sh intentionally references variables that may be
+          # unset. Do not enable `set -u` / nounset in this shell.
+          set -eo pipefail
           cd "$BUILD_ROOT"
-
-          free_bytes="$(df -PB1 "$BUILD_ROOT" | awk 'NR==2 {print $4}')"
-          if [ "$free_bytes" -lt $((12 * 1024 * 1024 * 1024)) ]; then
-            ccache -M 512M
-            ccache -c
-          fi
 
           export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
@@ -254,6 +254,14 @@ jobs:
 
           ccache -s || true
           df -hT "$BUILD_ROOT"
+
+      - name: Save compiler cache seed
+        if: success() && steps.ccache-restore.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: /home/runner/.ccache
+          key: twrp-ccache-${{ runner.os }}-12.1-samurai-seed-v1
 
       - name: Verify recovery.img
         id: verify
