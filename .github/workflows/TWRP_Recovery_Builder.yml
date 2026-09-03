@@ -17,7 +17,14 @@ jobs:
     steps:
       - name: Checkout workflow repository
         uses: actions/checkout@v4
+    - name: Clean-up
+      uses: rokibhasansagar/slimhub_actions@main
 
+    - name: Swap Space
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 24
+        
       - name: Install Dependencies
         run: |
           sudo apt update
