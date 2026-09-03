@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2022 Team Win Recovery Project
+# Copyright (C) 2024 Team Win Recovery Project
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -33,13 +33,11 @@ ENABLE_SCHEDBOOST := true
 # GPT Utils
 BOARD_PROVIDES_GPTUTILS := true
 
-# Bootloader
+# Bootloader / Platform
 PRODUCT_PLATFORM := msmnile
 TARGET_BOOTLOADER_BOARD_NAME := msmnile
 TARGET_NO_BOOTLOADER := true
 TARGET_USES_UEFI := true
-
-# Platform
 BOARD_USES_QCOM_HARDWARE := true
 QCOM_BOARD_PLATFORMS += msmnile
 TARGET_BOARD_PLATFORM := msmnile
@@ -84,13 +82,15 @@ BOARD_DTBOIMG_PARTITION_SIZE := 25165824
 BOARD_SYSTEMIMAGE_PARTITION_SIZE := 4487905280
 BOARD_ODMIMAGE_PARTITION_SIZE := 268435456
 BOARD_VENDORIMAGE_PARTITION_SIZE := 1649410048
+# BOARD_USERDATAIMAGE_PARTITION_SIZE := 12884901888
 
 # File Systems Types
 BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4
-# Samurai userdata defaults to F2FS; recovery.fstab also supports ext4.
+BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
+# Samurai userdata defaults to F2FS; recovery still supports both F2FS and ext4.
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 # Recovery
@@ -101,7 +101,7 @@ TARGET_SCREEN_DENSITY := 400
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 
-# Workaround for error copying vendor files to recovery 
+# Workaround for error copying vendor files to recovery
 TARGET_COPY_OUT_ODM := odm
 TARGET_COPY_OUT_VENDOR := vendor
 
@@ -113,7 +113,7 @@ BOARD_ROOT_EXTRA_FOLDERS := bluetooth dsp firmware persist
 BOARD_SUPPRESS_SECURE_ERASE := true
 TARGET_SYSTEM_PROP += $(DEVICE_PATH)/system.prop
 
-# Crypto
+# Crypto (Android 13-16 metadata FBE compatibility; QPR2 policy v2)
 BOARD_USES_METADATA_PARTITION := true
 BOARD_USES_QCOM_FBE_DECRYPTION := true
 TW_INCLUDE_CRYPTO := true
@@ -122,7 +122,7 @@ TW_INCLUDE_FBE_METADATA_DECRYPT := true
 TW_USE_FSCRYPT_POLICY := 2
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
-# Hack: Prevent anti rollback
+# Hack: Prevent anti rollback (match/exceed ROM security patch for decrypt)
 PLATFORM_VERSION := 99.87.36
 PLATFORM_SECURITY_PATCH := 2127-12-31
 VENDOR_SECURITY_PATCH := $(PLATFORM_SECURITY_PATCH)
@@ -160,3 +160,8 @@ TW_SKIP_COMPATIBILITY_CHECK := true
 # TWRP Debug Flags
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
+
+# TWRP 12.1 requirements
+BUILD_BROKEN_DUP_RULES := true
+BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
+BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
