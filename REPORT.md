@@ -11,7 +11,7 @@ SOURCE-VALIDATED
 - Device: Realme X2 Pro / `samurai` / RMX1931 family
 - Recovery manifest: TWRP AOSP `twrp-12.1`
 - Workflow: `.github/workflows/TWRP_Recovery_Builder.yml`
-- Pre-fix branch HEAD: `40bc20a0bf0322d4d25fd5c8e41030501030c8b8`
+- Audited pre-fix HEAD: `a903161e1e665c5852d4cae160eff538b195ff35`
 
 ## Failure history
 
@@ -23,104 +23,93 @@ The original external builder run `91554814121` failed before compilation:
 device/realme/samurai/device.mk:7: error: missing separator.
 ```
 
-The invalid text line `Apex libraries` was corrected to `# Apex libraries`. No BoardConfig, kernel, DTBO, fstab, partition, or recovery runtime configuration was changed for that fix.
+The invalid text line `Apex libraries` was corrected to `# Apex libraries`.
 
 ### 2. GitHub-hosted runner disk exhaustion
 
-Standalone workflow run `33786099130` / job `100751149647` failed during `repo sync` with:
+Standalone workflow run `33786099130` / job `100751149647` failed during `repo sync` with `No space left on device`.
 
-```text
-System.IO.IOException: No space left on device
-```
-
-That was a runner-capacity failure, not a Samurai compile failure.
+The cleanup policy was then changed to remove only disposable GitHub-hosted-runner software. A later run proved that this changes the runner from roughly 14 GiB free to roughly 44-45 GiB free before source synchronization.
 
 ### 3. Private repository checkout failure
 
-Workflow run `33788916143` / job `100760450278` used the disk-cleanup revision and made significantly more progress:
+Run `33788916143` / job `100760450278` completed TWRP source sync but failed because the workflow attempted an anonymous HTTPS fetch from this private repository.
+
+That was corrected by using authenticated `actions/checkout` with the job-scoped `GITHUB_TOKEN` and exact `github.sha`.
+
+### 4. Android envsetup / nounset failure
+
+Run `33792416438` / job `100771931484` successfully completed all of the following:
+
+- private Samurai checkout;
+- runner cleanup;
+- dependency installation;
+- TWRP 12.1 `repo init`;
+- TWRP 12.1 `repo sync`;
+- exact Samurai device-tree installation;
+- Samurai prebuilt kernel and DTBO validation.
+
+It then failed immediately while sourcing Android/TWRP `build/envsetup.sh`:
 
 ```text
-before cleanup: 73G total, 59G used, 14G free
-after cleanup:  73G total, 28G used, 45G free
-repo sync:      completed successfully
-post-sync:      11G free
-workspace:      34G
-.repo:          8.2G
+build/envsetup.sh: line 877: TOP: unbound variable
+build/envsetup.sh: line 388: ZSH_VERSION: unbound variable
 ```
 
-The build still did not reach `lunch` or `mka`. It failed in the device-tree fetch step because the workflow attempted an anonymous HTTPS fetch from this private repository:
+Root cause: the workflow executed the build step with `set -u` (`nounset`). Android's `envsetup.sh` intentionally references shell variables that may be unset. This is a CI-shell bug, not a Samurai source compile failure.
+
+Fix: use `set -eo pipefail` for the Android build shell and do not enable `nounset` while sourcing/running Android build functions.
+
+## Runner cleanup and swap correction
+
+Run `33792416438` also exposed this non-fatal workflow bug:
 
 ```text
-git -C device/realme/samurai fetch --depth=1 origin <GITHUB_SHA>
-fatal: could not read Username for 'https://github.com': No such device or address
+swapon: option '--output-all' doesn't allow an argument
 ```
 
-Root cause: the workflow had `contents: write` and a valid `GITHUB_TOKEN`, but the manual `git fetch https://github.com/${GITHUB_REPOSITORY}.git` did not use that token.
+The workflow no longer depends on that `swapon --output=NAME` form. Swap presence is checked through `/proc/swaps`, which is stable on the Ubuntu runner.
 
-## Corrected workflow design
+The cleanup step continues to remove only disposable/preinstalled hosted-runner content. It explicitly does not remove `$GITHUB_WORKSPACE`, the TWRP workspace, `.repo`, device sources, Git history/branches, kernel prebuilts, DTBO, BoardConfig, or fstab.
 
-The workflow is changed to use GitHub's native authenticated checkout for the private Samurai repository:
+If zram cannot be created, GitHub's existing disk-backed `/swapfile` is preserved. The swapfile is removed only if zram is actually active first.
 
-- `actions/checkout@v7`
-- exact triggering `github.sha`
-- `fetch-depth: 1`
-- `persist-credentials: false`
-- checkout goes to `$GITHUB_WORKSPACE/device-tree`
-- after TWRP sync, files are copied into `device/realme/samurai` with `.git` excluded
-- the checked-out commit is verified against `GITHUB_SHA`
+## Persistent TWRP source strategy
 
-No username, email, password, PAT, or embedded credential is required. The repository-scoped `GITHUB_TOKEN` is the correct credential for this workflow.
+A GitHub-hosted runner is an ephemeral VM. Files on its local filesystem do not survive after a job finishes, regardless of whether the workflow deletes them. Therefore a locally synced 34 GiB TWRP workspace cannot simply be "kept" on the next hosted runner.
 
-## Hosted-runner disk policy
+Run `33788916143` measured approximately:
 
-The workflow removes only disposable/preinstalled GitHub-hosted-runner software and caches that the recovery build does not need. It does not delete GitHub repositories, remote branches, device source files, kernel prebuilts, DTBO, BoardConfig, fstab, or repository history.
+```text
+TWRP workspace: ~34 GiB total
+.repo:          ~8.2 GiB
+```
 
-Known disposable runner content includes:
+The correct free-tier-oriented persistence strategy is to cache only the expensive `.repo` Git object database instead of the full working tree.
 
-- `/usr/local/lib/android`
-- `/opt/hostedtoolcache/*`
-- `/usr/share/dotnet`
-- `/opt/ghc`
-- `/usr/local/.ghcup`
-- `/usr/share/swift`
-- `/usr/local/share/boost`
-- `/usr/local/share/chromium`
-- `/opt/microsoft`
-- `/opt/az`
-- Docker/containerd image and layer state
-- `/home/runner/.cache/*`
-- apt download/list caches
+The workflow now uses `actions/cache/restore@v6` and `actions/cache/save@v6` for:
 
-Slow recursive size scans were removed from the hot path. `df -hT`, RAM, and swap state remain as evidence.
+```text
+$GITHUB_WORKSPACE/workspace/.repo
+```
 
-## Swap and disk headroom
+Design:
 
-Run `33788916143` showed that `/mnt` and `$GITHUB_WORKSPACE` are both backed by `/dev/root`, so moving the build to `/mnt` does not create additional capacity on that runner image.
+1. Restore a fixed TWRP 12.1 source seed cache before `repo init`.
+2. Always run `repo init` and `repo sync` so the restored source metadata is verified and brought current.
+3. On the first cache miss, save `.repo` immediately after a successful sync, even if a later compile fails.
+4. On cache hits, do not create another multi-gigabyte source cache entry.
+5. Never delete `.repo` in the workflow.
 
-The workflow therefore:
+The static seed cache is intentionally immutable. It provides a known TWRP 12.1 object base; subsequent runs fetch only upstream deltas during `repo sync`. The cache version can be bumped deliberately if a new seed is ever required.
 
-1. uses a genuinely separate `/mnt` filesystem only if a future runner actually provides one;
-2. attempts a 4 GiB zram swap device;
-3. only after zram is successfully active, disables and removes GitHub's default `/swapfile` to reclaim its disk space;
-4. keeps the default disk swap untouched if zram cannot be enabled.
+GitHub's current default repository Actions-cache storage limit is 10 GiB. Because `.repo` is already about 8.2 GiB, the compiler cache is restricted to 512 MiB and uses a single static seed key to avoid cache thrashing.
 
-This avoids trading build disk capacity for swap without a working replacement.
-
-## Build cache
-
-Compiler cache remains enabled for repeat-build speed, but its disk footprint is bounded aggressively because the TWRP source tree leaves limited headroom:
-
-- `actions/cache@v6`
-- compressed ccache
-- maximum ccache size: 1 GiB
-- cache restored after source synchronization, not before it
-- cache keyed by OS, TWRP 12.1, Samurai, and exact workflow commit
-
-This prevents a large restored ccache from causing `repo sync` to fail for lack of disk space.
+The full ~34 GiB TWRP workspace is not cached because it would exceed the default cache budget and would create large restore/save overhead.
 
 ## Source synchronization
 
-The successful run proves the current lean sync settings are viable on the hosted runner:
+The already proven sync settings are preserved:
 
 - `--depth=1`
 - partial clone
@@ -133,33 +122,40 @@ The successful run proves the current lean sync settings are viable on the hoste
 - fail fast
 - `repo sync -j4`
 
-The source synchronization stage is therefore preserved instead of being rewritten again.
+With a restored `.repo` cache, this remains a correctness check/update operation rather than a full network download on every run.
 
-## Action runtime versions
+## Private repository handling
 
-- Preserve the user's current `actions/setup-java@v5` update.
-- Use `actions/checkout@v7` for authenticated private checkout.
-- Upgrade compiler cache handling from `actions/cache@v4` to `actions/cache@v6` to avoid the Node 20 deprecation path seen in the failed run.
+The Samurai repository is checked out with `actions/checkout@v7` at exact `github.sha`, with `persist-credentials: false`. No username, email, password, PAT, or embedded credential is required.
+
+The checked-out SHA is verified before the device-tree files are copied into `device/realme/samurai`.
+
+## Build cache
+
+Compiler caching remains enabled but bounded to 512 MiB to preserve build disk headroom and stay below the repository cache budget alongside the ~8.2 GiB TWRP source seed.
+
+The ccache cache uses a static seed key rather than generating a new large cache for every commit.
 
 ## Build and release contract
 
-The workflow validates the exact Samurai device tree and then executes:
+The workflow validates the Samurai inputs, then executes Android build functions with nounset disabled:
 
 ```text
+source build/envsetup.sh
 lunch twrp_samurai-eng
 mka recoveryimage -j$(nproc --all)
 ```
 
-A GitHub Release is created only when `out/target/product/samurai/recovery.img` exists and is non-empty. A successful release contains:
+A GitHub Release is created only when `out/target/product/samurai/recovery.img` exists and is non-empty. Successful releases contain:
 
 - `recovery.img`
 - `recovery.img.sha256`
 
 ## Validation boundary
 
-This workflow fix is SOURCE-VALIDATED only.
+This update is SOURCE-VALIDATED only.
 
 - `BUILD-VALIDATED`: requires a successful workflow run producing `recovery.img`.
 - `BOOT-VALIDATED`: requires testing that exact `recovery.img` on RMX1931 hardware.
 
-No workflow run is triggered by this report/source update itself.
+No repository or branch deletion is part of this workflow. No workflow run is triggered by this source update itself.
