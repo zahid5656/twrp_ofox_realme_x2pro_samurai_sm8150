@@ -1,0 +1,153 @@
+name: TWRP Recovery Builder - Realme X2 Pro
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: twrp-recovery-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEVICE: samurai
+  DEVICE_PATH: device/realme/samurai
+  MANIFEST_URL: https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git
+  MANIFEST_BRANCH: twrp-12.1
+  OUT_DIR: out/target/product/samurai
+
+jobs:
+  build:
+    name: Build recovery.img
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet /opt/hostedtoolcache/CodeQL || true
+          df -h
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+            git git-lfs gnupg gperf imagemagick lib32readline-dev lib32z1-dev \
+            libbz2-dev libelf-dev libgflags-dev libgl1-mesa-dev liblz4-tool \
+            libncurses5 libncurses5-dev libsdl1.2-dev libssl-dev libtinfo5 \
+            libxml2-utils libwxgtk3.0-gtk3-dev lzma lzop ncftp pngcrush \
+            qemu-user-static rsync schedtool squashfs-tools x11proto-core-dev \
+            xsltproc zip zlib1g-dev
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '11'
+
+      - name: Install repo tool
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$HOME/bin"
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o "$HOME/bin/repo"
+          chmod +x "$HOME/bin/repo"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Initialize TWRP 12.1 source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/workspace"
+          cd "$GITHUB_WORKSPACE/workspace"
+          "$HOME/bin/repo" init \
+            --depth=1 \
+            -u "$MANIFEST_URL" \
+            -b "$MANIFEST_BRANCH"
+
+      - name: Sync TWRP source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/workspace"
+          "$HOME/bin/repo" sync \
+            -c \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune \
+            -j"$(nproc --all)"
+
+      - name: Fetch this Samurai device tree at the workflow commit
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/workspace"
+          mkdir -p "$(dirname "$DEVICE_PATH")"
+          git init "$DEVICE_PATH"
+          git -C "$DEVICE_PATH" remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$DEVICE_PATH" fetch --depth=1 origin "$GITHUB_SHA"
+          git -C "$DEVICE_PATH" checkout --detach FETCH_HEAD
+          echo "Device tree commit: $(git -C "$DEVICE_PATH" rev-parse HEAD)"
+
+      - name: Validate Samurai product configuration
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/workspace"
+          test -f "$DEVICE_PATH/AndroidProducts.mk"
+          test -f "$DEVICE_PATH/twrp_${DEVICE}.mk"
+          test -f "$DEVICE_PATH/BoardConfig.mk"
+          test -f "$DEVICE_PATH/device.mk"
+          grep -q 'COMMON_LUNCH_CHOICES := twrp_samurai-eng' "$DEVICE_PATH/AndroidProducts.mk"
+
+      - name: Build TWRP recovery
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "$GITHUB_WORKSPACE/workspace"
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export USE_CCACHE=1
+          export CCACHE_EXEC=/usr/bin/ccache
+          ccache -M 8G
+          source build/envsetup.sh
+          lunch twrp_${DEVICE}-eng
+          mka recoveryimage -j"$(nproc --all)"
+
+      - name: Verify recovery.img
+        id: verify
+        shell: bash
+        run: |
+          set -euxo pipefail
+          RECOVERY="$GITHUB_WORKSPACE/workspace/$OUT_DIR/recovery.img"
+          test -s "$RECOVERY"
+          cp "$RECOVERY" "$GITHUB_WORKSPACE/recovery.img"
+          cd "$GITHUB_WORKSPACE"
+          sha256sum recovery.img | tee recovery.img.sha256
+          echo "sha256=$(cut -d' ' -f1 recovery.img.sha256)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish recovery.img to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_SHA256: ${{ steps.verify.outputs.sha256 }}
+          SHORT_SHA: ${{ steps.verify.outputs.short_sha }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          TAG="twrp-samurai-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          TITLE="TWRP 12.1 for Realme X2 Pro (samurai) - ${SHORT_SHA}"
+          gh release create "$TAG" \
+            "$GITHUB_WORKSPACE/recovery.img" \
+            "$GITHUB_WORKSPACE/recovery.img.sha256" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes "TWRP recovery build for Realme X2 Pro (samurai / RMX1931 family).\n\nManifest: ${MANIFEST_BRANCH}\nDevice tree: ${GITHUB_SHA}\nrecovery.img SHA-256: ${RECOVERY_SHA256}"
