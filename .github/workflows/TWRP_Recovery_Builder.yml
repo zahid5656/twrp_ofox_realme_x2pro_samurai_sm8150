@@ -46,7 +46,8 @@ jobs:
           rm -rf "$FOX_SYNC_ROOT" "$FOX_ROOT"
           mkdir -p "$FOX_SYNC_ROOT"
           git clone https://gitlab.com/OrangeFox/sync.git "$FOX_SYNC_ROOT/sync"
-          "$FOX_SYNC_ROOT/sync/orangefox_sync.sh" \
+          cd "$FOX_SYNC_ROOT/sync"
+          ./orangefox_sync.sh \
             --branch 12.1 \
             --path "$FOX_ROOT"
 
