@@ -19,9 +19,9 @@ $(call inherit-product, device/realme/samurai/device.mk)
 
 PRODUCT_DEVICE := samurai
 PRODUCT_NAME := twrp_samurai
-PRODUCT_BRAND := Realme
+PRODUCT_BRAND := realme
 PRODUCT_MODEL := Realme X2 Pro
-PRODUCT_MANUFACTURER := Realme
+PRODUCT_MANUFACTURER := realme
 
 PRODUCT_BUILD_PROP_OVERRIDES += \
     PRODUCT_NAME=RMX1931 \
