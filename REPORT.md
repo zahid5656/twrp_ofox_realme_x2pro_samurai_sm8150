@@ -2,37 +2,40 @@
 
 Repository: `zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150`
 Branch: `fox-12.1-staging-backup`
-Pre-change HEAD: `848d1d7dd29d4310812c9f44d0aaa52b853ffa23`
+Pre-change HEAD: `106ba4bc2702c2ce5e625eb45dfa0fdb3e0fe053`
 Reference builder workflow: `zahid5656/OrangeFox-Recovery-Builder-2024`, branch `OrangeFox`, `.github/workflows/OrangeFox-Recovery-Builder.yml`
 
 ## Scope
 
-- Port the external OrangeFox builder's core build system into this branch's own GitHub Actions workflow.
-- Keep a 24 GB swap configuration.
-- Sync OrangeFox 12.1 using `orangefox_sync.sh`.
-- Clone `fox-12.1-staging-backup` into `device/realme/samurai`.
-- Keep the requested build environment exactly:
+- Restore the external OrangeFox-Recovery-Builder-2024 workflow structure in-tree instead of the previously simplified workflow.
+- Keep 24 GB swap.
+- Keep OrangeFox Android build-environment setup and `orangefox_sync.sh --branch 12.1` source sync.
+- Default the device tree to this repository and `fox-12.1-staging-backup` at `device/realme/samurai`.
+- Keep the requested Samurai build environment:
   - `export FOX_BUILD_DEVICE=samurai`
   - `export OF_FORCE_PREBUILT_KERNEL=1`
+  - `export OF_DEFAULT_KEYMASTER_VERSION=4.0`
+  - `export OF_DISABLE_MIUI_SPECIFIC_FEATURES=1`
   - `export OF_MAINTAINER="ETHICAL ∆ TITAN"`
   - `export FOX_MAINTAINER_PATCH_VERSION=1`
   - `source build/envsetup.sh`
   - `lunch twrp_samurai-eng`
-- Keep `ALLOW_MISSING_DEPENDENCIES=true` as in the external builder flow.
-- Build with `make clean` followed by `mka adbd recoveryimage`.
-- Fail the workflow if no non-empty recovery image is produced, then upload the produced OrangeFox artifacts.
+- Keep `ALLOW_MISSING_DEPENDENCIES=true`, `make clean`, and `mka adbd recoveryimage` for OrangeFox 12.1.
+- Keep recovery output detection, rename/release metadata, optional recovery-installer handling, GitHub Release publishing, ramdisk-recovery release handling, and an Actions artifact upload.
+- Remove `DEVICE_NAME` workflow input and hardcode `samurai` where the reference builder used that input.
+- Remove the `LDCHECK` input and the entire LDCheck step.
+- Remove the `RECOVERY_TAR` input and all Samsung TAR creation/release references.
 
 ## Preserved
 
 - Device source, BoardConfig, recovery fstab, `twrp.flags`, kernel, DTBO, crypto/Keymaster configuration and recovery blobs are unchanged.
-- No release creation, recovery-installer download, tar packaging or builder-repository-specific LDCheck step is included.
 - No workflow run is performed by this source update.
 
 ## Validation
 
-- Workflow/source configuration: SOURCE-VALIDATED.
+- Workflow/source configuration can only be SOURCE-VALIDATED by this write.
 - BUILD-VALIDATED requires a successful GitHub Actions run and a non-empty generated recovery image.
 
 ## Rollback
 
-Reset `fox-12.1-staging-backup` to `848d1d7dd29d4310812c9f44d0aaa52b853ffa23`.
+Reset `.github/workflows/TWRP_Recovery_Builder.yml` and `REPORT.md` to pre-change HEAD `106ba4bc2702c2ce5e625eb45dfa0fdb3e0fe053`.
