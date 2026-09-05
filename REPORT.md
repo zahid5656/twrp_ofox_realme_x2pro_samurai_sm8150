@@ -1,21 +1,30 @@
-# OrangeFox 12.1 correction report
+# OrangeFox 12.1 tuning report
 
 Repository: `zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150`
 Branch: `fox-12.1-staging-backup`
-Pre-change HEAD: `39aa14078c32492c4d2fee3d263fdfbbd1694b4f`
+Pre-change HEAD: `4db6a0f3ea9a87eb0151648ffbc77e5065c8d137`
+
+## Evidence
+
+- User-verified baseline: this branch lineage is BOOT-VALIDATED.
+- Current tuning policy: AOSP userdata is F2FS-primary while EXT4 remains supported as alternate.
+- OrangeFox build environment explicitly pins Keymaster 4.0.
 
 ## Scope
 
-- Make EXT4 the primary `/data` filesystem while retaining F2FS alternate support.
-- Remove the duplicate `BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE` assignment.
-- Make `vendor.qti.hardware.vibrator.service` executable.
-- Correct OrangeFox build documentation and branch/lunch references.
-- Point the local build script at `fox-12.1-staging-backup`.
-- Replace the stale TWRP 14.1 CI workflow with a manual OrangeFox 12.1 build workflow for this branch.
+- Restore `BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs`.
+- Restore F2FS-first `/data` ordering in `recovery.fstab`.
+- Keep EXT4 as alternate userdata filesystem.
+- Restore `OF_DEFAULT_KEYMASTER_VERSION=4.0` and `OF_DISABLE_MIUI_SPECIFIC_FEATURES=1` in both build script and manual build guide.
+- Keep `vendor.qti.hardware.vibrator.service` executable (`100755`).
+- Update README to match the boot-proven F2FS-primary tuning baseline.
 
 ## Preserved
 
 - `twrp.flags` unchanged.
-- Kernel, DTBO and recovery blobs unchanged.
-- Crypto/Keymaster configuration unchanged.
-- No workflow run, flash, wipe, force-push or destructive deletion performed.
+- Kernel, DTBO, recovery blobs, crypto/Keymaster payload and AVB configuration unchanged.
+- No workflow run, flash, wipe, branch deletion or unrelated source modification.
+
+## Rollback
+
+Reset `fox-12.1-staging-backup` to `4db6a0f3ea9a87eb0151648ffbc77e5065c8d137`.

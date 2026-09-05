@@ -10,7 +10,7 @@ Device tree for Realme X2 Pro RMX1931 / RMX1931L1 / RMX1931CN, unified as `samur
 - Prebuilt kernel: `prebuilt/Image.gz-dtb`
 - Prebuilt DTBO: `prebuilt/dtbo.img`
 - Boot image header: v1
-- Userdata support: EXT4 primary + F2FS alternate
+- Userdata support: F2FS primary + EXT4 alternate
 - QCOM FBE / metadata encryption support enabled
 - Keymaster default: 4.0
 
@@ -37,6 +37,6 @@ lunch twrp_samurai-eng
 
 ## Validation status
 
-The device-tree configuration is source-audited. A successful source audit does not prove recovery boot or encrypted userdata decryption.
+This branch is user-verified BOOT-VALIDATED. Current edits are tuning-only and must preserve that known-good boot baseline.
 
-Runtime validation must cover recovery boot, ADB, touch/display, brightness, MTP, USB OTG, EXT4/F2FS userdata handling, Format Data behavior, QSEE/Keymaster/Gatekeeper startup, backup/restore and flashing before release claims.
+Further tuning validation should re-check decryption, userdata handling, MTP, USB OTG, haptics, backup/restore and flashing after each change.
