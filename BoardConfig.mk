@@ -12,16 +12,18 @@ DEVICE_PATH := device/realme/samurai
 
 # Architecture (SM8150 / Kryo 485; validated against TeamWin 14.1 build rules)
 TARGET_ARCH := arm64
-TARGET_ARCH_VARIANT := armv8-2a-dotprod
+TARGET_ARCH_VARIANT := armv8-2a
 TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_ABI2 :=
-TARGET_CPU_VARIANT := cortex-a76
+TARGET_CPU_VARIANT := generic
+TARGET_CPU_VARIANT_RUNTIME := cortex-a76
 
 TARGET_2ND_ARCH := arm
-TARGET_2ND_ARCH_VARIANT := armv8-2a
+TARGET_2ND_ARCH_VARIANT := armv8-a
 TARGET_2ND_CPU_ABI := armeabi-v7a
 TARGET_2ND_CPU_ABI2 := armeabi
-TARGET_2ND_CPU_VARIANT := cortex-a55
+TARGET_2ND_CPU_VARIANT := generic
+TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a76
 
 # Enable CPUSets
 ENABLE_CPUSETS := true
@@ -45,18 +47,27 @@ TARGET_USES_QCOM_BSP := true
 
 # Kernel
 BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 pm.sleep_mode=1 service_locator.enable=1 swiotlb=2048 cgroup_disable=pressure
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
+
 BOARD_KERNEL_BASE := 0x00000000
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_TAGS_OFFSET := 0x00000100
-BOARD_RAMDISK_OFFSET     := 0x01000000
+BOARD_RAMDISK_OFFSET := 0x01000000
 BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
+BOARD_KERNEL_SEPARATED_DTBO := true
+BOARD_RAMDISK_USE_LZ4 := true
+
 TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
+
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/Image.gz-dtb
 BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilt/dtbo.img
 BOARD_INCLUDE_RECOVERY_DTBO := true
+
 BOARD_BOOTIMG_HEADER_VERSION := 1
+
 TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery/root/system/etc/recovery.fstab
+
 BOARD_MKBOOTIMG_ARGS := --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
@@ -86,7 +97,8 @@ BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4
-# Build/default userdata type. Recovery runtime supports both F2FS and EXT4.
+BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
+# Samurai userdata defaults to F2FS; recovery still supports both F2FS and ext4.
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 # Recovery
@@ -153,6 +165,7 @@ TW_SKIP_COMPATIBILITY_CHECK := true
 TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # OrangeFox Recovery Flags
+FOX_TARGET_DEVICES := samurai,RMX1931,RMX1931L1,RMX1931CN
 
 # Screen & Display Settings
 OF_SCREEN_H := 2400
@@ -164,6 +177,7 @@ OF_ALLOW_DISABLE_NAVBAR := 0
 
 # Keymaster & Decryption
 OF_DEFAULT_KEYMASTER_VERSION := 4.0
+OF_KEEP_FORCED_KEYMASTER := true
 
 # OrangeFox Features & Utilities
 OF_DISABLE_MIUI_SPECIFIC_FEATURES := 1
@@ -171,6 +185,7 @@ OF_QUICK_BACKUP_LIST := /data;/boot;
 OF_ENABLE_LPTOOLS := 1
 OF_PATCH_AVB20 := 1
 OF_SUPPORT_OZIP_DECRYPTION := 1
+OF_USE_GREEN_LED := 0
 
 # TWRP Debug Flags
 TWRP_INCLUDE_LOGCAT := true
