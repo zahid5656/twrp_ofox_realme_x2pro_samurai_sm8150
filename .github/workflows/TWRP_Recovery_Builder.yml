@@ -1,22 +1,68 @@
-name: OrangeFox 12.1 - samurai
+name: OrangeFox - Build
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: orangefox-12.1-samurai-${{ github.ref }}
-  cancel-in-progress: false
+    inputs:
+      MANIFEST_BRANCH:
+        description: 'OrangeFox Branch'
+        required: true
+        default: '12.1'
+        type: choice
+        options:
+          - 12.1
+      DEVICE_TREE:
+        description: 'Custom Recovery Tree'
+        required: true
+        default: 'https://github.com/zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150.git'
+      DEVICE_TREE_BRANCH:
+        description: 'Custom Recovery Tree Branch'
+        required: true
+        default: 'fox-12.1-staging-backup'
+      DEVICE_PATH:
+        description: 'Specify your device path.'
+        required: true
+        default: 'device/realme/samurai'
+      BUILD_TARGET:
+        description: 'Specify your Build Target'
+        required: true
+        default: 'recovery'
+        type: choice
+        options:
+          - boot
+          - recovery
+          - vendorboot
+      RECOVERY_INSTALLER:
+        description: 'Include recovery installer zip'
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   build:
-    name: Build OrangeFox recovery
+    name: Build OFRP by ${{ github.actor }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    if: github.event.repository.owner.id == github.event.sender.id
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Display Inputs
+        run: |
+          echo "::group::User Environment Variables"
+          echo "OrangeFox Branch: ${{ github.event.inputs.MANIFEST_BRANCH }}"
+          echo "Device Tree: ${{ github.event.inputs.DEVICE_TREE }}"
+          echo "Device Tree Branch: ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+          echo "Device Path: ${{ github.event.inputs.DEVICE_PATH }}"
+          echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}"
+          echo "Include Recovery Installer: ${{ github.event.inputs.RECOVERY_INSTALLER }}"
+          echo "::endgroup::"
+
       - name: Clean-up
         uses: rokibhasansagar/slimhub_actions@main
 
@@ -26,7 +72,6 @@ jobs:
           swap-size-gb: 24
 
       - name: Build Environment
-        shell: bash
         run: |
           sudo apt update
           sudo apt -y upgrade
@@ -35,7 +80,6 @@ jobs:
           sudo bash setup/android_build_env.sh
 
       - name: Set-up Manifest
-        shell: bash
         run: |
           mkdir -p "${GITHUB_WORKSPACE}/OrangeFox"
           cd "${GITHUB_WORKSPACE}/OrangeFox"
@@ -44,68 +88,152 @@ jobs:
           git clone https://gitlab.com/OrangeFox/sync.git
           cd sync
           ./orangefox_sync.sh \
-            --branch 12.1 \
-            --path "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
+            --branch "${{ github.event.inputs.MANIFEST_BRANCH }}" \
+            --path "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}"
 
       - name: Clone Device Tree
-        shell: bash
         run: |
-          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
-          mkdir -p device/realme
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}"
+          mkdir -p "$(dirname '${{ github.event.inputs.DEVICE_PATH }}')"
           git clone \
-            --branch fox-12.1-staging-backup \
-            --single-branch \
-            https://github.com/zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150.git \
-            device/realme/samurai
-          cd device/realme/samurai
-          echo "DEVICE_TREE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+            "${{ github.event.inputs.DEVICE_TREE }}" \
+            -b "${{ github.event.inputs.DEVICE_TREE_BRANCH }}" \
+            "./${{ github.event.inputs.DEVICE_PATH }}"
+          cd "${{ github.event.inputs.DEVICE_PATH }}"
+          echo "COMMIT_ID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Build OrangeFox
-        shell: bash
+      - name: Building OrangeFox
         run: |
-          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
+          cd "${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}"
+
           export FOX_BUILD_DEVICE=samurai
+          export OF_DISABLE_MIUI_SPECIFIC_FEATURES=1
           export OF_FORCE_PREBUILT_KERNEL=1
+          export OF_DEFAULT_KEYMASTER_VERSION=4.0
           export OF_MAINTAINER="ETHICAL ∆ TITAN"
           export FOX_MAINTAINER_PATCH_VERSION=1
+
           set +e
           source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
           set -e
+
           lunch twrp_samurai-eng
           make clean
-          mka adbd recoveryimage
+          mka adbd "${{ github.event.inputs.BUILD_TARGET }}image"
 
-      - name: Confirm Build Output
-        shell: bash
+      - name: Set Build Date
+        run: |
+          echo "BUILD_DATE=$(date +%Y%m%d)" >> "$GITHUB_ENV"
+          DEVICE_TREE_URL="${{ github.event.inputs.DEVICE_TREE }}"
+          if [[ "$DEVICE_TREE_URL" == *.git ]]; then
+            DEVICE_TREE_URL="${DEVICE_TREE_URL%.git}"
+          fi
+          echo "DEVICE_TREE_URL=$DEVICE_TREE_URL" >> "$GITHUB_ENV"
+
+      - name: Check if Recovery Exists
         run: |
           set -e
-          OUT="${GITHUB_WORKSPACE}/OrangeFox/fox_12.1/out/target/product/samurai"
+          OUT="${GITHUB_WORKSPACE}/OrangeFox/fox_${{ github.event.inputs.MANIFEST_BRANCH }}/out/target/product/samurai"
           test -d "$OUT"
-          shopt -s nullglob
-          images=("$OUT"/OrangeFox*.img)
-          if [ ${#images[@]} -eq 0 ]; then
-            if [ -s "$OUT/recovery.img" ]; then
-              images=("$OUT/recovery.img")
-            else
-              echo "No OrangeFox recovery image was produced."
-              exit 1
-            fi
-          fi
-          for image in "${images[@]}"; do
-            test -s "$image"
-            ls -lh "$image"
-            sha256sum "$image"
-          done
-          echo "ORANGEFOX_OUT=$OUT" >> "$GITHUB_ENV"
 
-      - name: Upload OrangeFox Artifacts
+          shopt -s nullglob
+          FOX_IMAGES=("$OUT"/OrangeFox*.img)
+
+          if [ ${#FOX_IMAGES[@]} -gt 0 ]; then
+            IMAGE="${FOX_IMAGES[0]}"
+          elif [ -s "$OUT/recovery.img" ]; then
+            IMAGE="$OUT/recovery.img"
+          elif [ -s "$OUT/boot.img" ]; then
+            IMAGE="$OUT/boot.img"
+          elif [ -s "$OUT/vendor_boot.img" ]; then
+            IMAGE="$OUT/vendor_boot.img"
+          else
+            echo "No recovery image was produced."
+            exit 1
+          fi
+
+          test -s "$IMAGE"
+          echo "CHECK_IMG_IS_OK=true" >> "$GITHUB_ENV"
+          echo "FILE_PATH=$OUT" >> "$GITHUB_ENV"
+          echo "SOURCE_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "MD5_IMG=$(md5sum "$IMAGE" | cut -d ' ' -f 1)" >> "$GITHUB_ENV"
+          ls -lh "$IMAGE"
+          sha256sum "$IMAGE"
+
+      - name: Rename the Recovery
+        run: |
+          set -e
+          cd "${{ env.FILE_PATH }}"
+
+          if [ "${{ github.event.inputs.BUILD_TARGET }}" = "boot" ]; then
+            TARGET_IMAGE="boot.img"
+            echo "RECOVERY_TYPE=boot" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "recovery" ]; then
+            TARGET_IMAGE="recovery.img"
+            echo "RECOVERY_TYPE=recovery" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.inputs.BUILD_TARGET }}" = "vendorboot" ]; then
+            TARGET_IMAGE="vendor_boot.img"
+            echo "RECOVERY_TYPE=vendor_boot" >> "$GITHUB_ENV"
+          else
+            echo "Unsupported build target."
+            exit 1
+          fi
+
+          if [ "${{ env.SOURCE_IMAGE }}" != "${{ env.FILE_PATH }}/$TARGET_IMAGE" ]; then
+            cp -f "${{ env.SOURCE_IMAGE }}" "$TARGET_IMAGE"
+          fi
+          test -s "$TARGET_IMAGE"
+
+      - name: Include Recovery Installer
+        if: github.event.inputs.RECOVERY_INSTALLER == 'true'
+        continue-on-error: true
+        run: |
+          cd "${{ env.FILE_PATH }}"
+          wget -O recovery-installer.zip \
+            https://github.com/kinguser981/recovery-installer/releases/download/11256427880/recovery-installer.zip
+          zip -ur recovery-installer.zip "${{ env.RECOVERY_TYPE }}.img"
+
+      - name: Upload to Release
+        if: env.CHECK_IMG_IS_OK == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.FILE_PATH }}/${{ env.RECOVERY_TYPE }}.img
+            ${{ env.FILE_PATH }}/recovery-installer.zip
+            ${{ env.FILE_PATH }}/OrangeFox*.zip
+          name: Unofficial OrangeFox for samurai // ${{ env.BUILD_DATE }}
+          tag_name: ${{ github.run_id }}
+          body: |
+            Build: ${{ github.event.inputs.MANIFEST_BRANCH }}
+            Device: [Device Tree/Branch](${{ env.DEVICE_TREE_URL }}/tree/${{ github.event.inputs.DEVICE_TREE_BRANCH }})
+            Commit: Most recent [commit](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}) during building.
+            MD5 (img): ${{ env.MD5_IMG }}
+
+      - name: Release ramdisk-recovery
+        if: env.CHECK_IMG_IS_OK == 'true'
+        uses: softprops/action-gh-release@4634c16e79c963813287e889244c50009e7f0981
+        with:
+          files: |
+            ${{ env.FILE_PATH }}/obj/PACKAGING/vendor_ramdisk_fragments_intermediates/recovery.*
+            ${{ env.FILE_PATH }}/ramdisk-recovery.*
+          name: Unofficial OrangeFox for samurai // ${{ env.BUILD_DATE }}
+          tag_name: ${{ github.run_id }}
+          body: |
+            Target: ${{ env.RECOVERY_TYPE }}.img
+            Build: ${{ github.event.inputs.MANIFEST_BRANCH }}
+            Device: [Device Tree/Branch](${{ env.DEVICE_TREE_URL }}/tree/${{ github.event.inputs.DEVICE_TREE_BRANCH }})
+            Commit: Most recent [commit](${{ env.DEVICE_TREE_URL }}/commit/${{ env.COMMIT_ID }}) during building.
+            MD5 (img): ${{ env.MD5_IMG }}
+
+      - name: Upload Actions Artifact
+        if: env.CHECK_IMG_IS_OK == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: orangefox-samurai-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            ${{ env.ORANGEFOX_OUT }}/OrangeFox*.img
-            ${{ env.ORANGEFOX_OUT }}/OrangeFox*.zip
-            ${{ env.ORANGEFOX_OUT }}/recovery.img
+            ${{ env.FILE_PATH }}/${{ env.RECOVERY_TYPE }}.img
+            ${{ env.FILE_PATH }}/recovery-installer.zip
+            ${{ env.FILE_PATH }}/OrangeFox*.zip
           if-no-files-found: error
           retention-days: 7
