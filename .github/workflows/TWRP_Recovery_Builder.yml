@@ -6,21 +6,27 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: orangefox-12.1-samurai-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
+    name: Build OrangeFox recovery
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
-      - name: Clean runner
+      - name: Clean-up
         uses: rokibhasansagar/slimhub_actions@main
 
-      - name: Configure swap
+      - name: Swap Space
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 24
 
-      - name: Install Android build environment
+      - name: Build Environment
+        shell: bash
         run: |
           sudo apt update
           sudo apt -y upgrade
@@ -28,17 +34,21 @@ jobs:
           cd scripts
           sudo bash setup/android_build_env.sh
 
-      - name: Sync OrangeFox 12.1
+      - name: Set-up Manifest
+        shell: bash
         run: |
           mkdir -p "${GITHUB_WORKSPACE}/OrangeFox"
           cd "${GITHUB_WORKSPACE}/OrangeFox"
+          git config --global user.name "zahid5656"
+          git config --global user.email "zahid5656@gmail.com"
           git clone https://gitlab.com/OrangeFox/sync.git
           cd sync
           ./orangefox_sync.sh \
             --branch 12.1 \
             --path "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
 
-      - name: Clone samurai device tree
+      - name: Clone Device Tree
+        shell: bash
         run: |
           cd "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
           mkdir -p device/realme
@@ -47,23 +57,55 @@ jobs:
             --single-branch \
             https://github.com/zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150.git \
             device/realme/samurai
+          cd device/realme/samurai
+          echo "DEVICE_TREE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Build recovery
+      - name: Build OrangeFox
+        shell: bash
         run: |
           cd "${GITHUB_WORKSPACE}/OrangeFox/fox_12.1"
           export FOX_BUILD_DEVICE=samurai
           export OF_FORCE_PREBUILT_KERNEL=1
           export OF_MAINTAINER="ETHICAL ∆ TITAN"
           export FOX_MAINTAINER_PATCH_VERSION=1
+          set +e
           source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true
+          set -e
           lunch twrp_samurai-eng
-          mka recoveryimage
+          make clean
+          mka adbd recoveryimage
 
-      - name: Upload OrangeFox artifacts
+      - name: Confirm Build Output
+        shell: bash
+        run: |
+          set -e
+          OUT="${GITHUB_WORKSPACE}/OrangeFox/fox_12.1/out/target/product/samurai"
+          test -d "$OUT"
+          shopt -s nullglob
+          images=("$OUT"/OrangeFox*.img)
+          if [ ${#images[@]} -eq 0 ]; then
+            if [ -s "$OUT/recovery.img" ]; then
+              images=("$OUT/recovery.img")
+            else
+              echo "No OrangeFox recovery image was produced."
+              exit 1
+            fi
+          fi
+          for image in "${images[@]}"; do
+            test -s "$image"
+            ls -lh "$image"
+            sha256sum "$image"
+          done
+          echo "ORANGEFOX_OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload OrangeFox Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: orangefox-samurai
+          name: orangefox-samurai-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            OrangeFox/fox_12.1/out/target/product/samurai/OrangeFox*.img
-            OrangeFox/fox_12.1/out/target/product/samurai/OrangeFox*.zip
+            ${{ env.ORANGEFOX_OUT }}/OrangeFox*.img
+            ${{ env.ORANGEFOX_OUT }}/OrangeFox*.zip
+            ${{ env.ORANGEFOX_OUT }}/recovery.img
           if-no-files-found: error
+          retention-days: 7
