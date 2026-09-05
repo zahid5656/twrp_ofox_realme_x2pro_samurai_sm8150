@@ -110,6 +110,9 @@ jobs:
 
           mka recoveryimage 2>&1 | tee "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
 
+          echo "==== BUILD LOG TAIL ===="
+          tail -200 "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
+
       - name: Verify OrangeFox outputs
         shell: bash
         run: |
