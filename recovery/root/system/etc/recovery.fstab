@@ -6,8 +6,8 @@
 #   fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey
 #   keydirectory=/metadata/vold/metadata_encryption
 #
-# TODO: Add 'check' as fs_mgr_flags with data partition.
-# Currently we don't have e2fsck compiled, so fs check would fail.
+# /data is EXT4-primary for stock-compatible Format Data behavior; F2FS remains
+# available as the alternate filesystem for AOSP/custom-ROM userdata.
 
 # <src>                                                     <mnt_point>   <type>   <mnt_flags and options>                                                       <fs_mgr_flags>
 /dev/block/bootdevice/by-name/boot                           /boot         emmc     defaults                                                                       defaults
@@ -17,6 +17,6 @@
 /dev/block/bootdevice/by-name/vendor                         /vendor       ext4     ro,barrier=1                                                                   wait
 /dev/block/bootdevice/by-name/cache                          /cache        ext4     nosuid,noatime,nodev,barrier=1                                                 wait
 /dev/block/bootdevice/by-name/metadata                       /metadata     ext4     noatime,nosuid,nodev                                                           wait,formattable,check,first_stage_mount,metadata_csum
-/dev/block/bootdevice/by-name/userdata                       /data         f2fs     noatime,nosuid,nodev,discard,fsync_mode=nobarrier,inlinecrypt                    latemount,wait,check,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey,keydirectory=/metadata/vold/metadata_encryption,formattable,reservedsize=128M,sysfs_path=/sys/devices/platform/soc/1d84000.ufshc,checkpoint=fs
-/dev/block/bootdevice/by-name/userdata                       /data         ext4     noatime,nosuid,nodev,barrier=1,noauto_da_alloc,errors=panic,inlinecrypt          latemount,wait,check,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey,keydirectory=/metadata/vold/metadata_encryption,reservedsize=128M
+/dev/block/bootdevice/by-name/userdata                       /data         ext4     noatime,nosuid,nodev,barrier=1,noauto_da_alloc,errors=panic,inlinecrypt          latemount,wait,check,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey,keydirectory=/metadata/vold/metadata_encryption,formattable,reservedsize=128M
+/dev/block/bootdevice/by-name/userdata                       /data         f2fs     noatime,nosuid,nodev,discard,fsync_mode=nobarrier,inlinecrypt                    latemount,wait,check,fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized,wrappedkey,keydirectory=/metadata/vold/metadata_encryption,reservedsize=128M,sysfs_path=/sys/devices/platform/soc/1d84000.ufshc,checkpoint=fs
 /dev/block/bootdevice/by-name/misc                           /misc         emmc     defaults                                                                       defaults

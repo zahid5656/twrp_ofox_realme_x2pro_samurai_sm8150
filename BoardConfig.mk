@@ -86,9 +86,8 @@ BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 BOARD_CACHEIMAGE_FILE_SYSTEM_TYPE := ext4
+# Build/default userdata type. Recovery runtime supports both EXT4 and F2FS.
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := ext4
-# Samurai userdata defaults to F2FS; recovery still supports both F2FS and ext4.
-BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 
 # Recovery
 BOARD_HAS_LARGE_FILESYSTEM := true
