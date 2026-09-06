@@ -19,7 +19,6 @@
 /vendor_image     emmc     /dev/block/bootdevice/by-name/vendor                                              flags=backup=1;flashimg=1
 
 /metadata         ext4     /dev/block/bootdevice/by-name/metadata                                            flags=display="Metadata";backup=1;wipeingui
-/storage          auto     /data/media/0                                                                     flags=display="Internal Storage";usermrf;backup=1;fsflags="bind";removable
 /firmware         vfat     /dev/block/bootdevice/by-name/modem                                               flags=display="Firmware";mounttodecrypt
 /misc             emmc     /dev/block/bootdevice/by-name/misc
 /modem            emmc     /dev/block/bootdevice/by-name/modem                                               flags=backup=1;display="Modem"
