@@ -132,6 +132,16 @@ jobs:
             exit "$ENVSETUP_STATUS"
           fi
 
+          echo "=== OrangeFox environment debug ==="
+          echo "FOX_MANIFEST_ROOT=$FOX_MANIFEST_ROOT"
+          echo "FOX_BUILD_DEVICE=$FOX_BUILD_DEVICE"
+
+          echo "=== Device product files ==="
+          find device/realme/samurai -maxdepth 2 -type f \
+            \( -name "AndroidProducts.mk" -o -name "*samurai*.mk" -o -name "BoardConfig.mk" \) -print
+
+          export ALLOW_MISSING_DEPENDENCIES=true
+
           echo "=== Verifying build setup ==="
           TOP=$(gettop) || { echo "ERROR: gettop failed"; exit 1; }
           echo "TOP=$TOP"
