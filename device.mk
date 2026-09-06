@@ -4,6 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Apex libraries
+PRODUCT_COPY_FILES += \
+    $(OUT_DIR)/target/product/$(PRODUCT_RELEASE_NAME)/obj/SHARED_LIBRARIES/libandroidicu_intermediates/libandroidicu.so:$(TARGET_COPY_OUT_RECOVERY)/root/system/lib64/libandroidicu.so
+
 # Soong namespaces
 PRODUCT_SOONG_NAMESPACES += \
     $(DEVICE_PATH)
@@ -30,17 +34,22 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     ozip_decrypt
 
-# Recovery
+# Recovery - Core modules
 TARGET_RECOVERY_DEVICE_MODULES += \
     libion \
     libxml2 \
+    libdm \
+    libcryptfs_hw \
     vendor.display.config@1.0 \
     vendor.display.config@2.0 \
     libdisplayconfig.qti
 
+# Recovery - Relink libraries
 TW_RECOVERY_ADDITIONAL_RELINK_LIBRARY_FILES += \
     $(TARGET_OUT_SHARED_LIBRARIES)/libion.so \
     $(TARGET_OUT_SHARED_LIBRARIES)/libxml2.so \
+    $(TARGET_OUT_SHARED_LIBRARIES)/libdm.so \
+    $(TARGET_OUT_SHARED_LIBRARIES)/libcryptfs_hw.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@1.0.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@2.0.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/libdisplayconfig.qti.so
