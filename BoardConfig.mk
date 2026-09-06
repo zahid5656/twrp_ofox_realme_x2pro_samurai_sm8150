@@ -46,7 +46,7 @@ TARGET_SUPPORTS_64_BIT_APPS := true
 TARGET_USES_QCOM_BSP := true
 
 # Kernel
-BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 pm.sleep_mode=1 service_locator.enable=1 swiotlb=2048 cgroup_disable=pressure
+BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x37 service_locator.enable=1 androidboot.selinux=permissive
 BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 
 BOARD_KERNEL_BASE := 0x00000000
@@ -191,7 +191,8 @@ OF_USE_GREEN_LED := 0
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
 
-# TWRP 12.1 requirements
+# TWRP 12.1 requirements - Build compatibility
 BUILD_BROKEN_DUP_RULES := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
+BUILD_BROKEN_VENDOR_PROPERTY_OVERRIDE := true
