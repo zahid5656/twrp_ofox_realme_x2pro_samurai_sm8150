@@ -112,7 +112,6 @@ jobs:
           export OF_FORCE_PREBUILT_KERNEL=1
           export OF_DEFAULT_KEYMASTER_VERSION=4.0
           export OF_MAINTAINER="ETHICAL ∆ TITAN"
-          export FOX_MAINTAINER_PATCH_VERSION=1
           export USE_CCACHE=1
           export CCACHE_MAXSIZE="50G"
 
@@ -120,7 +119,17 @@ jobs:
           test -f build/envsetup.sh || { echo "ERROR: build/envsetup.sh not found!"; ls -la build/; exit 1; }
           
           echo "=== Sourcing build environment ==="
-          source build/envsetup.sh || { echo "ERROR: Failed to source build/envsetup.sh"; exit 1; }
+          set +e
+          source build/envsetup.sh
+          ENVSETUP_STATUS=$?
+          set -e
+
+          if [ "$ENVSETUP_STATUS" -ne 0 ]; then
+            echo "ERROR: Failed to source build/envsetup.sh"
+            echo "=== envsetup debug trace ==="
+            bash -x build/envsetup.sh || true
+            exit "$ENVSETUP_STATUS"
+          fi
 
           echo "=== Verifying build setup ==="
           TOP=$(gettop) || { echo "ERROR: gettop failed"; exit 1; }
