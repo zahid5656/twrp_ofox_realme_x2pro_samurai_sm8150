@@ -26,19 +26,9 @@ jobs:
         uses: rokibhasansagar/slimhub_actions@main
 
       - name: Configure 24 GB swap
-        shell: bash
-        run: |
-          # Create swap file
-          sudo mkdir -p /mnt/swapdir
-          sudo fallocate -l 24G /mnt/swapdir/swapfile
-          sudo chmod 600 /mnt/swapdir/swapfile
-          
-          # Format and enable swap
-          sudo mkswap /mnt/swapdir/swapfile || echo "mkswap failed, trying with dd"
-          sudo swapon /mnt/swapdir/swapfile || echo "swapon failed, continuing without swap"
-          
-          # Verify swap
-          swapon --show || echo "No swap active"
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 24
 
       - name: Install OrangeFox build environment
         shell: bash
@@ -115,8 +105,6 @@ jobs:
       - name: Build OrangeFox recovery
         shell: bash
         run: |
-          set -e
-          set -o pipefail
           cd "$FOX_ROOT"
 
           export FOX_BUILD_DEVICE=samurai
@@ -128,11 +116,14 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_MAXSIZE="50G"
 
+          echo "=== Checking build directory ==="
+          test -f build/envsetup.sh || { echo "ERROR: build/envsetup.sh not found!"; ls -la build/; exit 1; }
+          
           echo "=== Sourcing build environment ==="
-          source build/envsetup.sh
+          source build/envsetup.sh || { echo "ERROR: Failed to source build/envsetup.sh"; exit 1; }
 
           echo "=== Verifying build setup ==="
-          gettop
+          TOP=$(gettop) || { echo "ERROR: gettop failed"; exit 1; }
           echo "TOP=$TOP"
           echo "ANDROID_BUILD_TOP=$ANDROID_BUILD_TOP"
           echo "FOX_MANIFEST_ROOT=$FOX_MANIFEST_ROOT"
@@ -156,19 +147,26 @@ jobs:
           mkdir -p "$FOX_ROOT/.ccache/tmp"
           export CCACHE_DIR="$FOX_ROOT/.ccache"
           export CCACHE_TEMPDIR="$FOX_ROOT/.ccache/tmp"
-
-          set +e
+          ccache -s || echo "ccache not available"
 
           echo ""
           echo "=== Starting build ==="
+          
+          # Start the build and capture both status
+          set +e
           mka recoveryimage 2>&1 | tee "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
-
           BUILD_STATUS=${PIPESTATUS[0]}
+          set -e
 
+          echo ""
+          echo "==== BUILD COMPLETED WITH STATUS: $BUILD_STATUS ===="
+          
+          # Show tail of log
           echo ""
           echo "==== BUILD LOG TAIL ===="
           tail -300 "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
 
+          # Extract errors
           echo ""
           echo "==== BUILD ERROR SUMMARY ===="
           grep -nEi "error:|FAILED|failed|ninja:|missing|No such file|undefined reference|fatal" \
@@ -184,28 +182,29 @@ jobs:
           path: orangefox-samurai-build.log
 
       - name: Verify OrangeFox outputs
+        if: success()
         shell: bash
         run: |
           set -e
           OUT="$FOX_ROOT/out/target/product/samurai"
-          test -d "$OUT"
+          test -d "$OUT" || { echo "ERROR: Output directory missing"; exit 1; }
 
           shopt -s nullglob
           FOX_IMAGES=("$OUT"/OrangeFox*.img)
           FOX_ZIPS=("$OUT"/OrangeFox*.zip)
 
           if [ ${#FOX_IMAGES[@]} -eq 0 ]; then
-            echo "Missing OrangeFox*.img"
+            echo "ERROR: Missing OrangeFox*.img"
             exit 1
           fi
 
           if [ ${#FOX_ZIPS[@]} -eq 0 ]; then
-            echo "Missing OrangeFox*.zip"
+            echo "ERROR: Missing OrangeFox*.zip"
             exit 1
           fi
 
           if [ ! -s "$OUT/recovery.img" ]; then
-            echo "Missing or empty recovery.img"
+            echo "ERROR: Missing or empty recovery.img"
             exit 1
           fi
 
@@ -219,6 +218,7 @@ jobs:
           echo "BUILD_DATE=$(date +%Y%m%d)" >> "$GITHUB_ENV"
 
       - name: Publish OrangeFox release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: orangefox-samurai-${{ github.run_id }}-${{ github.run_attempt }}
