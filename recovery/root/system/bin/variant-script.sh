@@ -3,7 +3,7 @@
 load_RMX1931L1()
 {
     resetprop "ro.product.device" "RMX1931L1"
-    resetprop "ro.commonsoft.ota" "RMX1931L1"
+    resetprop "ro.commonsoft.ota" "RMX1931"
     resetprop "ro.separate.soft" "19688"
     echo "Global variant detected"
 }
