@@ -81,6 +81,27 @@ jobs:
           cd device/realme/samurai
           echo "DEVICE_TREE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
+      - name: Verify build environment
+        shell: bash
+        run: |
+          set -e
+          echo "=== System Resources ==="
+          free -h
+          df -h "$FOX_ROOT" || df -h
+          echo "CPU Count: $(nproc)"
+          grep "model name" /proc/cpuinfo | head -1
+          
+          echo ""
+          echo "=== Device Tree Structure ==="
+          cd "$FOX_ROOT"
+          test -d device/realme/samurai || { echo "ERROR: Device tree directory missing"; exit 1; }
+          test -f device/realme/samurai/BoardConfig.mk || { echo "ERROR: BoardConfig.mk missing"; exit 1; }
+          test -f device/realme/samurai/device.mk || { echo "ERROR: device.mk missing"; exit 1; }
+          test -f device/realme/samurai/recovery/root/system/etc/recovery.fstab || { echo "ERROR: recovery.fstab missing"; exit 1; }
+          
+          echo "Device tree verified:"
+          ls -la device/realme/samurai/ | grep -E "\.mk|recovery"
+
       - name: Build OrangeFox recovery
         shell: bash
         run: |
@@ -94,41 +115,54 @@ jobs:
           export OF_DEFAULT_KEYMASTER_VERSION=4.0
           export OF_MAINTAINER="ETHICAL ∆ TITAN"
           export FOX_MAINTAINER_PATCH_VERSION=1
+          export USE_CCACHE=1
+          export CCACHE_MAXSIZE="50G"
 
+          echo "=== Sourcing build environment ==="
           source build/envsetup.sh
 
+          echo "=== Verifying build setup ==="
           gettop
           echo "TOP=$TOP"
           echo "ANDROID_BUILD_TOP=$ANDROID_BUILD_TOP"
           echo "FOX_MANIFEST_ROOT=$FOX_MANIFEST_ROOT"
           echo "FOX_BUILD_DEVICE=$FOX_BUILD_DEVICE"
 
-          lunch twrp_samurai-eng
+          echo ""
+          echo "=== Running lunch ==="
+          lunch twrp_samurai-eng || { echo "ERROR: lunch failed"; exit 1; }
             
+          echo "=== Build configuration ==="
           echo "TARGET_PRODUCT=$TARGET_PRODUCT"
           echo "TARGET_DEVICE=$TARGET_DEVICE"
           echo "ANDROID_PRODUCT_OUT=$ANDROID_PRODUCT_OUT"
 
-          test "$TARGET_PRODUCT" = "twrp_samurai"
-          test "$TARGET_DEVICE" = "samurai"
-          test -n "$ANDROID_PRODUCT_OUT"
+          test "$TARGET_PRODUCT" = "twrp_samurai" || { echo "ERROR: TARGET_PRODUCT mismatch"; exit 1; }
+          test "$TARGET_DEVICE" = "samurai" || { echo "ERROR: TARGET_DEVICE mismatch"; exit 1; }
+          test -n "$ANDROID_PRODUCT_OUT" || { echo "ERROR: ANDROID_PRODUCT_OUT not set"; exit 1; }
 
+          echo ""
+          echo "=== Setting up ccache ==="
           mkdir -p "$FOX_ROOT/.ccache/tmp"
           export CCACHE_DIR="$FOX_ROOT/.ccache"
           export CCACHE_TEMPDIR="$FOX_ROOT/.ccache/tmp"
 
           set +e
 
+          echo ""
+          echo "=== Starting build ==="
           mka recoveryimage 2>&1 | tee "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
 
           BUILD_STATUS=${PIPESTATUS[0]}
 
+          echo ""
           echo "==== BUILD LOG TAIL ===="
-          tail -200 "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
+          tail -300 "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
 
+          echo ""
           echo "==== BUILD ERROR SUMMARY ===="
-          grep -nEi "error:|FAILED|failed|ninja:|missing|No such file" \
-            "$GITHUB_WORKSPACE/orangefox-samurai-build.log" || true
+          grep -nEi "error:|FAILED|failed|ninja:|missing|No such file|undefined reference|fatal" \
+            "$GITHUB_WORKSPACE/orangefox-samurai-build.log" | head -50 || echo "No errors found in summary"
 
           exit "$BUILD_STATUS"
 
