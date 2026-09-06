@@ -18,6 +18,7 @@ jobs:
     if: github.event.repository.owner.id == github.event.sender.id
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       FOX_ROOT: ${{ github.workspace }}/fox_12.1
       FOX_SYNC_ROOT: ${{ github.workspace }}/OrangeFox_sync
 
