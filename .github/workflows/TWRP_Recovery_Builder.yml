@@ -45,8 +45,13 @@ jobs:
           set -e
           rm -rf "$FOX_SYNC_ROOT" "$FOX_ROOT"
           mkdir -p "$FOX_SYNC_ROOT"
-          git clone https://gitlab.com/OrangeFox/sync.git "$FOX_SYNC_ROOT/sync"
+          git clone --depth=1 https://gitlab.com/OrangeFox/sync.git "$FOX_SYNC_ROOT/sync"
           cd "$FOX_SYNC_ROOT/sync"
+
+          echo "Checking OrangeFox 12.1 manifest patch"
+          test -f patches/patch-manifest-fox_12.1.diff
+          echo "Found: patches/patch-manifest-fox_12.1.diff"
+
           ./orangefox_sync.sh \
             --branch 12.1 \
             --path "$FOX_ROOT"
@@ -99,10 +104,14 @@ jobs:
           echo "FOX_BUILD_DEVICE=$FOX_BUILD_DEVICE"
 
           lunch twrp_samurai-eng
-
+            
           echo "TARGET_PRODUCT=$TARGET_PRODUCT"
           echo "TARGET_DEVICE=$TARGET_DEVICE"
           echo "ANDROID_PRODUCT_OUT=$ANDROID_PRODUCT_OUT"
+
+          test "$TARGET_PRODUCT" = "twrp_samurai"
+          test "$TARGET_DEVICE" = "samurai"
+          test -n "$ANDROID_PRODUCT_OUT""
 
           mkdir -p "$FOX_ROOT/.ccache/tmp"
           export CCACHE_DIR="$FOX_ROOT/.ccache"
