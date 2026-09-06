@@ -22,9 +22,6 @@ PRODUCT_SOONG_NAMESPACES += \
 # SHIPPING API (device launched on Pie; FBE policy forced to v2 in BoardConfig)
 PRODUCT_SHIPPING_API_LEVEL := 28
 
-# Assert
-TARGET_OTA_ASSERT_DEVICE := samurai,RMX1931,RMX1931L1
-
 # Crypto (QCOM FBE via android_device_qcom_twrp-common)
 PRODUCT_PACKAGES += \
     qcom_decrypt \
