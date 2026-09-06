@@ -111,16 +111,33 @@ jobs:
 
           test "$TARGET_PRODUCT" = "twrp_samurai"
           test "$TARGET_DEVICE" = "samurai"
-          test -n "$ANDROID_PRODUCT_OUT""
+          test -n "$ANDROID_PRODUCT_OUT"
 
           mkdir -p "$FOX_ROOT/.ccache/tmp"
           export CCACHE_DIR="$FOX_ROOT/.ccache"
           export CCACHE_TEMPDIR="$FOX_ROOT/.ccache/tmp"
 
+          set +e
+
           mka recoveryimage 2>&1 | tee "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
+
+          BUILD_STATUS=${PIPESTATUS[0]}
 
           echo "==== BUILD LOG TAIL ===="
           tail -200 "$GITHUB_WORKSPACE/orangefox-samurai-build.log"
+
+          echo "==== BUILD ERROR SUMMARY ===="
+          grep -nEi "error:|FAILED|failed|ninja:|missing|No such file" \
+            "$GITHUB_WORKSPACE/orangefox-samurai-build.log" || true
+
+          exit "$BUILD_STATUS"
+
+      - name: Upload OrangeFox build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orangefox-build-log
+          path: orangefox-samurai-build.log
 
       - name: Verify OrangeFox outputs
         shell: bash
