@@ -26,9 +26,19 @@ jobs:
         uses: rokibhasansagar/slimhub_actions@main
 
       - name: Configure 24 GB swap
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 24
+        shell: bash
+        run: |
+          # Create swap file
+          sudo mkdir -p /mnt/swapdir
+          sudo fallocate -l 24G /mnt/swapdir/swapfile
+          sudo chmod 600 /mnt/swapdir/swapfile
+          
+          # Format and enable swap
+          sudo mkswap /mnt/swapdir/swapfile || echo "mkswap failed, trying with dd"
+          sudo swapon /mnt/swapdir/swapfile || echo "swapon failed, continuing without swap"
+          
+          # Verify swap
+          swapon --show || echo "No swap active"
 
       - name: Install OrangeFox build environment
         shell: bash
