@@ -4,7 +4,7 @@
 #
 # OrangeFox base       : fox_12.1
 # Device tree          : zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150
-# Device tree branch   : fox-12.1-staging
+# Device tree branch   : ofox-12.1
 # Physical device      : Realme X2 Pro / RMX1931
 # Rebranded codename   : samurai
 #
@@ -51,7 +51,7 @@ cd /home/titan/fox_12.1
 mkdir -p device/realme
 rm -rf device/realme/samurai
 git clone \
-  --branch fox-12.1-staging \
+  --branch ofox-12.1 \
   --single-branch \
   https://github.com/zahid5656/twrp_ofox_realme_x2pro_samurai_sm8150.git \
   device/realme/samurai

@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018,2020-2021 The Linux Foundation. All rights reserved.
+# Copyright (c) 2009-2012, 2014-2015, The Linux Foundation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,28 +29,15 @@ import /init.recovery.qcom_decrypt.rc
 import /init.recovery.usb.rc
 
 on init
-    # Samurai has a dedicated recovery partition; always align the temporary
-    # decryption properties with the installed QPR2 ROM.
+    # Help prepdecrypt align OS version / security patch with system for FBE
     setprop prepdecrypt.setpatch true
-
-    # Mount binderfs for recovery HAL services.
-    mkdir /dev/binderfs
-    mount binder binder /dev/binderfs stats=global
-    chmod 0755 /dev/binderfs
-
-    symlink /dev/binderfs/binder /dev/binder
-    symlink /dev/binderfs/hwbinder /dev/hwbinder
-    symlink /dev/binderfs/vndbinder /dev/vndbinder
-
-    chmod 0666 /dev/binderfs/hwbinder
-    chmod 0666 /dev/binderfs/binder
-    chmod 0666 /dev/binderfs/vndbinder
-
-    write /sys/class/backlight/panel0-backlight/brightness 200
+    # Verbose decrypt logging (recovery.log) — set 0 to silence
+    setprop prepdecrypt.loglevel 2
 
 on fs
     wait /dev/block/platform/soc/${ro.boot.bootdevice}
     symlink /dev/block/platform/soc/${ro.boot.bootdevice} /dev/block/bootdevice
+    write /sys/class/power_supply/usb/otg_switch 1
     export ANDROID_ROOT /system_root
     write /sys/class/power_supply/usb/otg_switch 1
 
@@ -60,10 +47,16 @@ service variant-script /system/bin/variant-script.sh
     disabled
     oneshot
     seclabel u:r:recovery:s0
+    
+service vendor.qti.vibrator /system/bin/vendor.qti.hardware.vibrator.service
+    user root
+    group root
+    disabled
+    setenv LD_LIBRARY_PATH /vendor/lib64:/vendor/lib:/system/lib64:/system/lib:/sbin
+    seclabel u:r:recovery:s0    
 
 on boot
     start variant-script
     start health-hal-2-1
-
+    start vendor.qti.vibrator
     setprop sys.usb.config adb
-    write /sys/class/leds/vibrator/level 2

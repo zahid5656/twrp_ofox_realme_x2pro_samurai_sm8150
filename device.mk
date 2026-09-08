@@ -19,13 +19,10 @@ TARGET_SCREEN_WIDTH := 1080
 PRODUCT_SOONG_NAMESPACES += \
     vendor/qcom/opensource/commonsys-intf/display
     
-# SHIPPING API
+# SHIPPING API (device launched on Pie; FBE policy forced to v2 in BoardConfig)
 PRODUCT_SHIPPING_API_LEVEL := 28
 
-# Assert
-TARGET_OTA_ASSERT_DEVICE := samurai,RMX1931,RMX1931L1,RMX1931CN
-
-# Crypto
+# Crypto (QCOM FBE via android_device_qcom_twrp-common)
 PRODUCT_PACKAGES += \
     qcom_decrypt \
     qcom_decrypt_fbe
@@ -34,17 +31,22 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     ozip_decrypt
 
-# Recovery
+# Recovery - Core modules
 TARGET_RECOVERY_DEVICE_MODULES += \
     libion \
     libxml2 \
-	vendor.display.config@1.0 \
-	vendor.display.config@2.0 \
-	libdisplayconfig.qti
+    libdm \
+    libcryptfs_hw \
+    vendor.display.config@1.0 \
+    vendor.display.config@2.0 \
+    libdisplayconfig.qti
 
+# Recovery - Relink libraries
 TW_RECOVERY_ADDITIONAL_RELINK_LIBRARY_FILES += \
     $(TARGET_OUT_SHARED_LIBRARIES)/libion.so \
     $(TARGET_OUT_SHARED_LIBRARIES)/libxml2.so \
+    $(TARGET_OUT_SHARED_LIBRARIES)/libdm.so \
+    $(TARGET_OUT_SHARED_LIBRARIES)/libcryptfs_hw.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@1.0.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@2.0.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/libdisplayconfig.qti.so

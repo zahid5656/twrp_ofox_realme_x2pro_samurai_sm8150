@@ -3,30 +3,29 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+# For building with minimal manifest in QPR2
 
-# TWRP uses a reduced Android manifest; allow omitted non-recovery modules.
 ALLOW_MISSING_DEPENDENCIES := true
 
 # Device Path
 DEVICE_PATH := device/realme/samurai
 
-# Samurai is an A-only device
-AB_OTA_UPDATER := false
-
-# Architecture
+# Architecture (SM8150 / Kryo 485; validated against TeamWin 14.1 build rules)
 TARGET_ARCH := arm64
-TARGET_ARCH_VARIANT := armv8-2a-dotprod
+TARGET_ARCH_VARIANT := armv8-2a
 TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_ABI2 :=
-TARGET_CPU_VARIANT := cortex-a76
+TARGET_CPU_VARIANT := generic
+TARGET_CPU_VARIANT_RUNTIME := cortex-a76
 
 TARGET_2ND_ARCH := arm
-TARGET_2ND_ARCH_VARIANT := armv8-2a
+TARGET_2ND_ARCH_VARIANT := armv8-a
 TARGET_2ND_CPU_ABI := armeabi-v7a
 TARGET_2ND_CPU_ABI2 := armeabi
-TARGET_2ND_CPU_VARIANT := cortex-a55
+TARGET_2ND_CPU_VARIANT := generic
+TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a76
 
-# Recovery build/runtime policy
+# Enable CPUSets
 ENABLE_CPUSETS := true
 ENABLE_SCHEDBOOST := true
 
@@ -43,14 +42,16 @@ QCOM_BOARD_PLATFORMS += msmnile
 TARGET_BOARD_PLATFORM := msmnile
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno640
 TARGET_USES_64_BIT_BINDER := true
+TARGET_SUPPORTS_64_BIT_APPS := true
 TARGET_USES_QCOM_BSP := true
 
 # Kernel
 BOARD_KERNEL_CMDLINE := androidboot.boot_devices=soc/1d84000.ufshc androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.usbcontroller=a600000.dwc3 kpti=off loop.max_part=7 lpm_levels.sleep_disabled=1 msm_rtb.filter=0x237 pm.sleep_mode=1 service_locator.enable=1 swiotlb=2048 cgroup_disable=pressure
+BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
 BOARD_KERNEL_BASE := 0x00000000
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_TAGS_OFFSET := 0x00000100
-BOARD_RAMDISK_OFFSET     := 0x01000000
+BOARD_RAMDISK_OFFSET := 0x01000000
 BOARD_KERNEL_IMAGE_NAME := Image.gz-dtb
 BOARD_KERNEL_SEPARATED_DTBO := true
 TARGET_KERNEL_ARCH := arm64
@@ -64,6 +65,9 @@ BOARD_MKBOOTIMG_ARGS := --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
 
+# Assert
+TARGET_OTA_ASSERT_DEVICE := RMX1931,samurai
+
 # AVB
 BOARD_AVB_ENABLE := true
 BOARD_AVB_ROLLBACK_INDEX := $(PLATFORM_SECURITY_PATCH_TIMESTAMP)
@@ -73,7 +77,7 @@ BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 
-# Partitions
+# Partitions (Samurai A-only QPR2 physical layout)
 BOARD_FLASH_BLOCK_SIZE := 262144
 BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 83886080
@@ -97,7 +101,6 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_HAS_NO_REAL_SDCARD := true
 TARGET_RECOVERY_PIXEL_FORMAT := RGBX_8888
-TARGET_SCREEN_DENSITY := 400
 TARGET_USERIMAGES_USE_EXT4 := true
 TARGET_USERIMAGES_USE_F2FS := true
 
@@ -120,7 +123,6 @@ TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
 TW_USE_FSCRYPT_POLICY := 2
-TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # Hack: Prevent anti rollback (match/exceed ROM security patch for decrypt)
 PLATFORM_VERSION := 99.87.36
@@ -156,8 +158,7 @@ TW_FORCE_KEYMASTER_VER := true
 TW_HAS_EDL_MODE := true
 TW_OZIP_DECRYPT_KEY := 1c4c1ea3a12531ae491b21bb31613c11
 TW_SKIP_COMPATIBILITY_CHECK := true
-
-# OrangeFox Recovery Flags
+TARGET_KEYMASTER_WAIT_FOR_QSEE := true
 
 # Screen & Display Settings
 OF_SCREEN_H := 2400
@@ -169,6 +170,7 @@ OF_ALLOW_DISABLE_NAVBAR := 0
 
 # Keymaster & Decryption
 OF_DEFAULT_KEYMASTER_VERSION := 4.0
+OF_KEEP_FORCED_KEYMASTER := true
 
 # OrangeFox Features & Utilities
 OF_DISABLE_MIUI_SPECIFIC_FEATURES := 1
@@ -181,7 +183,8 @@ OF_SUPPORT_OZIP_DECRYPTION := 1
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
 
-# TWRP 12.1 requirements
+# TWRP 12.1 requirements - Build compatibility
 BUILD_BROKEN_DUP_RULES := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 BUILD_BROKEN_MISSING_REQUIRED_MODULES := true
+BUILD_BROKEN_VENDOR_PROPERTY_OVERRIDE := true 
