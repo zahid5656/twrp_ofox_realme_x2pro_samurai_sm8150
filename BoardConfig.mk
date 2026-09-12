@@ -180,8 +180,8 @@ OF_USE_LZ4_COMPRESSION := 1
 # Flashlight configurations for realme X2 Pro (samurai)
 OF_FLASHLIGHT_ENABLE := 1
 OF_USE_GREEN_LED := 0
-OF_FL_PATH1 := "/sys/class/leds/led:torch_0"
-OF_FL_PATH2 := "/sys/class/leds/led:torch_1"
+OF_FL_PATH1 := ""/sys/class/leds/led:torch_0""
+OF_FL_PATH2 := ""/sys/class/leds/led:torch_1""
 
 # OrangeFox Recovery binary files
 FOX_REPLACE_BUSYBOX_PS := 1
