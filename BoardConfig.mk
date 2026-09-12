@@ -198,7 +198,7 @@ FOX_USE_DATE_BINARY := 1
 # OrangeFox Recovery Build settings & info
 FOX_BUILD_DEVICE := samurai
 OF_FORCE_PREBUILT_KERNEL := 1
-OF_MAINTAINER := "ETHICAL ∆ TITAN"
+OF_MAINTAINER := ""ETHICAL ∆ TITAN""
 FOX_MAINTAINER_PATCH_VERSION := 3
 
 # Screen & Display Settings
