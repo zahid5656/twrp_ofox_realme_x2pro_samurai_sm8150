@@ -1,20 +1,18 @@
 # =======================================================
-# OrangeFox USB, MTP, and Controller Fallbacks
+# OrangeFox USB and Controller Fallbacks
 # =======================================================
 sys.usb.controller=a600000.dwc3
 sys.usb.rndis.func.name=rndis_bam
 sys.usb.rmnet.func.name=rmnet_bam
 persist.sys.isUsbOtgEnabled=true
-persist.sys.usb.config=mtp,adb
-ro.sys.usb.storage.type=mtp
-
+ro.boot.avb_version=1.3
+ro.boot.vbmeta.avb_version=1.0
 # =======================================================
 # OrangeFox Gatekeeper / Keymaster & Force ADB access 
 # =======================================================
 vendor.gatekeeper.disable_spu=true
 keymaster_ver=4.0
 ro.adb.secure=0
-
 # =======================================================
 # OrangeFox Cryptography Architecture (FBE Mapping)
 # =======================================================
@@ -23,3 +21,4 @@ ro.crypto.allow_encrypt_override=true
 ro.crypto.dm_default_key.options_format.version=2
 ro.crypto.volume.metadata.method=dm-default-key
 ro.crypto.volume.options=aes-256-xts:aes-256-cts:v2
+

@@ -18,6 +18,9 @@ PRODUCT_SOONG_NAMESPACES += \
 # SHIPPING API (device launched on Pie; FBE policy forced to v2 in BoardConfig)
 PRODUCT_SHIPPING_API_LEVEL := 28
 
+# Assert
+TARGET_OTA_ASSERT_DEVICE := samurai,RMX1931,RMX1931L1
+
 # Crypto (QCOM FBE via android_device_qcom_twrp-common)
 PRODUCT_PACKAGES += \
     qcom_decrypt \
@@ -31,21 +34,25 @@ PRODUCT_PACKAGES += \
 TARGET_RECOVERY_DEVICE_MODULES += \
     libion \
     libxml2 \
-    libdm \
-    libcryptfs_hw \
     vendor.display.config@1.0 \
     vendor.display.config@2.0 \
     libdisplayconfig.qti
 
-# Recovery - Relink libraries
+# Flashlight (QCOM Hardware Light HAL modules for GitHub Actions / Blind Builds)
+PRODUCT_PACKAGES += \
+    android.hardware.light@2.0-service \
+    lights.qcom
+
+# Recovery - Relink libraries (Display & Hardware Light Shared Libraries)
 TW_RECOVERY_ADDITIONAL_RELINK_LIBRARY_FILES += \
     $(TARGET_OUT_SHARED_LIBRARIES)/libion.so \
     $(TARGET_OUT_SHARED_LIBRARIES)/libxml2.so \
-    $(TARGET_OUT_SHARED_LIBRARIES)/libdm.so \
-    $(TARGET_OUT_SHARED_LIBRARIES)/libcryptfs_hw.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@1.0.so \
     $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/vendor.display.config@2.0.so \
-    $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/libdisplayconfig.qti.so
+    $(TARGET_OUT_SYSTEM_EXT_SHARED_LIBRARIES)/libdisplayconfig.qti.so \
+    $(TARGET_OUT_SHARED_LIBRARIES)/hw/lights.qcom.so \
+    $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/hw/android.hardware.light@2.0-impl.so \
+    $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)/android.hardware.light@2.0.so
 
 # Vibrator
 TW_SUPPORT_INPUT_AIDL_HAPTICS := true
